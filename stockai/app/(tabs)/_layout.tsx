@@ -18,7 +18,8 @@ export default function TabLayout() {
         tabBarStyle: { backgroundColor: Colors[colorScheme ?? 'light'].surface },
         tabBarLabelStyle: { fontWeight: '600' },
         tabBarButton: HapticTab,
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
@@ -36,9 +37,18 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="investment"
+        options={{
+          title: '投资分析',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="chart.pie.fill" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="qa"
         options={{
-          title: '智能问答',
+          title: '智能版权',
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="bubble.left.and.bubble.right.fill" color={color} />
           ),

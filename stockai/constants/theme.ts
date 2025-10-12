@@ -8,6 +8,8 @@ import { Platform } from 'react-native';
 const crimson = '#C2341F';
 const softBackground = '#FBE9E7';
 const golden = '#F5C26B';
+const jade = '#149A61';
+const jadeDark = '#4ADE9B';
 
 export const Colors = {
   light: {
@@ -24,7 +26,7 @@ export const Colors = {
     overlay: 'rgba(92, 18, 12, 0.85)',
     positive: crimson,
     positiveSoft: '#FF7F66',
-    negativeSoft: '#A94F4A',
+    negativeSoft: jade,
   },
   dark: {
     text: '#FFE3D6',
@@ -40,7 +42,7 @@ export const Colors = {
     overlay: 'rgba(10, 2, 2, 0.9)',
     positive: golden,
     positiveSoft: '#F9B385',
-    negativeSoft: '#F28B82',
+    negativeSoft: jadeDark,
   },
 };
 

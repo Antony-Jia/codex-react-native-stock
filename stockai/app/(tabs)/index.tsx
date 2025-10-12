@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { StockSearchBar } from '@/components/stock-search-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
@@ -57,9 +59,13 @@ const SectionCard = ({
 );
 
 export default function MarketOverviewScreen() {
+  const insets = useSafeAreaInsets();
+  const topPadding = Math.max(insets.top + 12, 24);
+
   return (
     <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingTop: topPadding }]}>
+        <StockSearchBar />
         <View style={styles.header}>
           <ThemedText type="title" style={styles.title}>
             沪市红日
@@ -151,7 +157,6 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 32,
     paddingHorizontal: 20,
-    paddingTop: 24,
     gap: 18,
   },
   header: {
@@ -206,7 +211,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   negative: {
-    color: '#A94F4A',
+    color: '#148A55',
     fontWeight: '600',
   },
   muted: {

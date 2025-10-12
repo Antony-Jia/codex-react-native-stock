@@ -19,8 +19,10 @@ const MAPPING = {
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
   'chart.line.uptrend.xyaxis': 'show-chart',
+  'chart.pie.fill': 'pie-chart',
   'star.fill': 'star',
   'bubble.left.and.bubble.right.fill': 'forum',
+  magnifyingglass: 'search',
   'person.crop.circle': 'person',
 } as IconMapping;
 
