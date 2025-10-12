@@ -186,9 +186,9 @@ const renderMessage = (message: Message) => {
       return (
         <View key={message.id} style={[styles.messageRow, isUser && styles.alignEnd]}>
           <View style={bubbleStyle}>
-            {message.title && (
+            {'title' in message && message.title ? (
               <ThemedText style={styles.bubbleTitle}>{message.title}</ThemedText>
-            )}
+            ) : null}
             <ThemedText style={styles.bubbleText}>{message.text}</ThemedText>
           </View>
         </View>
