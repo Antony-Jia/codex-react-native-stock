@@ -18,6 +18,14 @@ poetry run uvicorn stockaibe_be.main:app --reload
 
 默认会在 `../data/limiter.db` 创建 SQLite 数据库。首次注册的用户会自动成为超级管理员。
 
+### 可视化看板
+
+Streamlit 面板现已迁移至 `dashboard/` 目录，运行方式：
+
+```bash
+poetry run streamlit run dashboard/app.py
+```
+
 ## 主要接口
 
 - `POST /api/auth/register`、`POST /api/auth/login`
