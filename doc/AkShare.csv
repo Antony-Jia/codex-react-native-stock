@@ -1,0 +1,30 @@
+模块,功能点,核心字段示例,AkShare函数,主要参数,频率,推荐缓存TTL,更新触发,边界与备注
+市场总览/指数,沪指/上证50/科创50现价与涨跌,"index_code, name, last, change, change_pct, volume, amount",stock_zh_index_spot,无（返回全市场指数现价，筛选 000001.SH/000016.SH/000688.SH）,盘中多次/延时,30s（首页），收盘后转为日缓存,页面刷新/定时任务每30s拉取,部分源延时；指数字段需与成分股维度对齐
+市场总览/指数,指数历史K线（日/周/月）,"date, open, high, low, close, volume, amount",stock_zh_index_daily,symbol='sh000001' 等；调整复权=不复权,日,永久（历史）+ 当日5min,收盘后刷新当日bar,指数无复权；注意节假日与缺失日期填充
+市场总览/指数,指数成分与权重,"index_code, stock_code, weight, name",index_stock_cons,symbol='000016'（上证50）等,月/季度,1天,成分调整公告后,权重字段部分来源缺失需二次计算
+资金面/北向,沪股通净流入（当日/历史）,"date/time, north_net_inflow, sh_net_inflow",stock_hsgt_north_net_flow_in,period='daily' 或 'minute'（若提供）,盘中/日,60s（盘中），收盘1天,定时轮询,东向/北向口径区分；节假日为空
+资金面/北向,沪股通持股变动（个股）,"date, code, name, hold_shares, hold_mv, hold_ratio",stock_hsgt_hold_stock_em,market='沪股通'，symbol=股票代码,日,1天,收盘后,部分股票无持股记录
+资金面/两融,融资融券余额（交易所/个股）,"date, financing_buy, financing_repay, margin_balance, securities_lend",margin_sse,symbol='融资融券余额' 等（上交所口径）,日,1天,收盘后,上/深所接口不同，需汇总口径
+个股/基础信息,个股列表与基础资料,"code, name, industry, list_date, total_shares, float_shares",stock_zh_a_spot_em,无（全A现价，结合静态基础库）,盘中,60s（价格）/7天（静态字段）,代码库周更,ST/退市状态需剔除或标注
+个股/基础信息,公司基本资料（东财）,"province, city, main_business, chairman, secretary, employees",stock_individual_info_em,symbol='600000' 等,低频,30天,年报/公告更新,个别字段缺失需容错
+个股/行情K线,日K（前复权/后复权/不复权）,"date, open, high, low, close, volume, amount",stock_zh_a_hist,"symbol, period='daily', adjust='qfq/hfq/None'",日,永久（历史）+ 当日5min,收盘后刷新当日bar,除权除息需选择复权方式
+个股/行情K线,分钟K（1/5/15/30/60）,"datetime, open, high, low, close, volume",stock_zh_a_hist_min_em,"symbol, period='1/5/15/30/60'",盘中,30s,定时轮询,盘中缺口/临停需补齐
+个股/盘口,Level-1 五档盘口（如可用）,"bid1~bid5, ask1~ask5, vol, amount",stock_zh_a_tick_tx,symbol,高频,5s,轮询,部分来源限制频率或权限
+技术指标,MA/EMA/MACD/KDJ/RSI/BOLL/ATR,各指标值与信号位,（本地计算）,以K线为输入，TA-Lib/Pandas/Numba,随K线更新,与K线一致,K线更新时重算,避免未来函数；按bar收盘计算信号
+资金流,个股主力资金净流入,"date, net_main_inflow, large_order_inflow, mid, small",stock_em_money_flow,symbol,日/盘中,1min（盘中）、1天（收盘）,轮询/收盘,口径为东财统计，仅作参考
+龙虎榜,龙虎榜明细与机构席位,"date, buy_amount, sell_amount, net, inst_net",stock_ggt_top10_em,symbol 或 日期,日,7天,收盘后,仅特定异动才有记录
+财务/报表,利润表/资产负债表/现金流,"report_date, revenue, np, total_assets, equity, ocf",stock_financial_statement_by_report_em,"symbol, report_type=('利润表'等)",季/年,90天,财报披露,单季与TTM需本地派生
+财务/指标,财务分析指标（ROE/ROA/毛利率等）,"roe, roa, gross_margin, net_margin, debt_ratio",stock_financial_analysis_indicator,symbol,季/年,90天,财报披露,指标口径与报表需对齐
+估值,估值快照与分位（行业对比）,"pe_ttm, pb, ps, div_yield, pctile_industry",stock_a_pe_and_pb_em,symbol 或 批量,日,1天,收盘后,分位需本地按行业分组计算
+股东结构,股东户数,"date, holders",stock_zh_a_gdhs,symbol,月/季,30天,公告更新,时间不均匀，做插值谨慎
+股东结构,前十大流通股东,"date, holder, hold_shares, ratio",stock_gdfx_free_top10_em,"symbol, date",季,90天,季报后,部分字段缺失
+解禁/增发,限售解禁计划,"date, unlock_shares, ratio",stock_share_unlock_em,symbol,事件驱动,30天,公告/临近日期,与供给压力相关
+公告/新闻,公司公告摘要,"datetime, title, category, url",stock_notice_cninfo,symbol,日,6小时,轮询,做关键词提取/分类
+公告/新闻,资讯与异动快讯,"datetime, title, sentiment",stock_news_em,symbol 或 概念,高频,10min,轮询,做舆情打分需去噪
+行业/主题,申万行业成分,"industry, code, name, weight",sw_index_cons,level/指数代码,低频,7天,成分变更,申万行业授权口径
+概念/主题,概念板块与成分,"concept, code, name",concept_board_cons_em,板块代码,中频,3天,板块调整,概念口径来自东财
+ETF,ETF 实时/历史,"code, price, change_pct, vol, amount",fund_etf_spot_em / fund_etf_hist_em,"symbol, period",盘中/日,30s/1天,轮询/收盘,ETF 可 T+0；申赎数据另表
+ETF,ETF 份额/申赎,"date, shares, creation, redemption",fund_etf_share_em,symbol,日,1天,收盘后,主题热度判断可用
+交易日历,交易所交易日,"date, is_trading",tool_trade_date_hist_sina,start_date/end_date,低频,30天,年初/节假日前,用于补齐时间序列
+停复牌,停牌/复牌列表,"code, name, suspend_time, resume_time, reason",stock_zh_a_suspend_em,date,日,1天,收盘后,字段可能不完整，需多源校验
+衍生品（可选）,沪深300/上证50 期指与期权持仓,"date, oi, volume, basis",futures_zh_daily / option_sina_sse_daily,symbol,日/盘中,1天/1min,轮询/收盘,与现货联动用于情绪与套保判断
