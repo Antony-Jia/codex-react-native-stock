@@ -29,6 +29,8 @@ class UserRead(UserBase):
     id: int
     is_active: bool
     is_superuser: bool
+    
+    model_config = {"from_attributes": True}
 
 
 class UserLogin(BaseModel):
@@ -68,6 +70,8 @@ class QuotaUpdate(BaseModel):
 class QuotaRead(QuotaBase):
     created_at: dt.datetime
     updated_at: dt.datetime
+    
+    model_config = {"from_attributes": True}
 
 
 class AcquireRequest(BaseModel):

@@ -12,6 +12,7 @@ from .security import (
     get_password_hash,
     verify_password,
 )
+from .logging_config import setup_logging, get_logger
 
 __all__ = [
     "settings",
@@ -27,4 +28,6 @@ __all__ = [
     "get_current_user",
     "get_password_hash",
     "verify_password",
+    "setup_logging",
+    "get_logger",
 ]

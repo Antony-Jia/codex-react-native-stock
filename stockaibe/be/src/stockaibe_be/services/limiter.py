@@ -10,8 +10,11 @@ from typing import Dict, Optional
 import redis
 from sqlalchemy.orm import Session
 
-from ..core import get_redis
+from ..core import get_redis, get_logger
 from ..models import Metric, Quota, TraceLog
+
+# 获取日志记录器
+logger = get_logger(__name__)
 
 
 # Lua script for token bucket rate limiting with atomic operations
@@ -93,8 +96,9 @@ class LimiterService:
                 self._redis = get_redis()
                 # Load Lua script
                 self._lua_sha = self._redis.script_load(LUA_TOKEN_BUCKET_SCRIPT)
+                logger.info("Redis 连接成功，Lua 脚本已加载")
             except Exception as e:
-                print(f"Redis connection failed, falling back to memory: {e}")
+                logger.warning(f"Redis 连接失败，回退到内存模式: {e}")
                 self._use_redis = False
                 return None
         return self._redis
@@ -127,8 +131,9 @@ class LimiterService:
                 if not r.exists(f"{quota_key}:tokens"):
                     r.set(f"{quota_key}:tokens", quota.capacity)
                     r.set(f"{quota_key}:last_refill", time.time())
+                    logger.debug(f"Redis 中初始化配额: {quota.id}")
             except Exception as e:
-                print(f"Redis initialization failed for {quota.id}: {e}")
+                logger.error(f"Redis 初始化配额失败 {quota.id}: {e}")
 
     def remove_quota(self, quota_id: str) -> None:
         """Remove quota from memory and Redis."""

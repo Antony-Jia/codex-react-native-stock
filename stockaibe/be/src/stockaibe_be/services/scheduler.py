@@ -12,8 +12,12 @@ from sqlmodel import Session, select, func
 from ..core.config import settings
 from ..core.database import engine
 from ..core.redis_client import get_redis
+from ..core.logging_config import get_logger
 from ..models import SchedulerTask, Metric, Quota
 from .limiter import limiter_service
+
+# 获取日志记录器
+logger = get_logger(__name__)
 
 
 scheduler = AsyncIOScheduler(timezone=settings.scheduler_timezone)
@@ -65,11 +69,12 @@ def snapshot_metrics(session: Session) -> None:
                     )
                     session.add(metric)
             except Exception as e:
-                print(f"Failed to snapshot metrics for {quota.id}: {e}")
+                logger.error(f"快照指标失败 {quota.id}: {e}", exc_info=True)
         
         session.commit()
+        logger.info(f"指标快照完成，处理了 {len(quotas)} 个配额")
     except Exception as e:
-        print(f"Snapshot metrics job failed: {e}")
+        logger.error(f"快照指标任务失败: {e}", exc_info=True)
         session.rollback()
 
 
@@ -106,24 +111,24 @@ def health_check_job(session: Session) -> None:
                     
                     # Check thresholds
                     if error_rate > settings.alert_error_rate_threshold:
-                        print(
-                            f"⚠️ ALERT: {quota.id} error rate {error_rate:.2%} "
-                            f"exceeds threshold {settings.alert_error_rate_threshold:.2%}"
+                        logger.warning(
+                            f"⚠️ 告警: {quota.id} 错误率 {error_rate:.2%} "
+                            f"超过阈值 {settings.alert_error_rate_threshold:.2%}"
                         )
                         # TODO: Implement circuit breaker logic
                         # quota.enabled = False
                         # session.commit()
                     
                     if rate_429 > settings.alert_429_rate_threshold:
-                        print(
-                            f"⚠️ ALERT: {quota.id} 429 rate {rate_429:.2%} "
-                            f"exceeds threshold {settings.alert_429_rate_threshold:.2%}"
+                        logger.warning(
+                            f"⚠️ 告警: {quota.id} 429 比率 {rate_429:.2%} "
+                            f"超过阈值 {settings.alert_429_rate_threshold:.2%}"
                         )
                         # TODO: Implement auto-slowdown logic
                         # quota.refill_rate *= 0.8
                         # session.commit()
     except Exception as e:
-        print(f"Health check job failed: {e}")
+        logger.error(f"健康检查任务失败: {e}", exc_info=True)
 
 
 def window_reset_job(session: Session) -> None:
@@ -141,18 +146,20 @@ def window_reset_job(session: Session) -> None:
         deleted = len(old_metrics)
         
         if deleted > 0:
-            print(f"🗑️ Cleaned up {deleted} old metrics")
+            logger.info(f"🗑️ 清理了 {deleted} 条旧指标")
         
         # Redis keys are auto-expired via TTL, no manual cleanup needed
     except Exception as e:
-        print(f"Window reset job failed: {e}")
+        logger.error(f"窗口重置任务失败: {e}", exc_info=True)
         session.rollback()
 
 
 def init_jobs() -> None:
     """Initialize all periodic jobs."""
+    logger.info("初始化定时任务...")
     if not scheduler.running:
         scheduler.start()
+        logger.info("调度器已启动")
     
     # Snapshot metrics every minute
     if not scheduler.get_job("snapshot_metrics"):
@@ -187,6 +194,8 @@ def init_jobs() -> None:
             name="Window Reset",
             replace_existing=True,
         )
+    
+    logger.info("所有定时任务已初始化完成")
 
 
 def register_cron_job(job_id: str, cron: str, func: Callable[[], Any]) -> None:
