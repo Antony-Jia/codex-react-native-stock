@@ -5,7 +5,7 @@ import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from ..core.database import engine
 from ..core.security import get_current_active_superuser, get_current_user, get_db
@@ -18,7 +18,7 @@ router = APIRouter()
 
 def _run_registered_job(job_id: str) -> None:
     """Execute a registered job and log the execution."""
-    with Session(bind=engine) as session:
+    with Session(engine) as session:
         trace = TraceLog(
             quota_id="system",
             status_code=200,
@@ -26,7 +26,8 @@ def _run_registered_job(job_id: str) -> None:
             message=f"Executed job {job_id}",
         )
         session.add(trace)
-        task = session.query(SchedulerTask).filter(SchedulerTask.job_id == job_id).first()
+        statement = select(SchedulerTask).where(SchedulerTask.job_id == job_id)
+        task = session.exec(statement).first()
         if task:
             task.last_run_at = dt.datetime.now(dt.timezone.utc)
         session.commit()
@@ -37,7 +38,8 @@ def list_tasks(db: Session = Depends(get_db), _: User = Depends(get_current_user
     """List all scheduled tasks."""
     jobs = scheduler.get_jobs()
     job_map = {job.id: job for job in jobs}
-    tasks = db.query(SchedulerTask).all()
+    statement = select(SchedulerTask)
+    tasks = db.exec(statement).all()
     results: list[TaskRead] = []
     for task in tasks:
         job = job_map.get(task.job_id)
@@ -106,7 +108,8 @@ def delete_task(
     _: User = Depends(get_current_active_superuser),
 ):
     """Delete a scheduled task."""
-    task = db.query(SchedulerTask).filter(SchedulerTask.job_id == job_id).first()
+    statement = select(SchedulerTask).where(SchedulerTask.job_id == job_id)
+    task = db.exec(statement).first()
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
     remove_job(job_id)

@@ -1,7 +1,7 @@
 """Rate limiter API endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from ..core.security import get_db
 from ..models import Quota
@@ -19,7 +19,8 @@ def acquire_token(req: AcquireRequest, db: Session = Depends(get_db)):
     This is the main endpoint for rate limiting. Clients call this before making requests
     to check if they have permission to proceed.
     """
-    quota = db.query(Quota).filter(Quota.id == req.qid).first()
+    statement = select(Quota).where(Quota.id == req.qid)
+    quota = db.exec(statement).first()
     if not quota:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quota not found")
     allowed, remain = limiter_service.acquire(

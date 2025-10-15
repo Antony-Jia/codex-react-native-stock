@@ -9,10 +9,10 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from .config import settings
-from .database import SessionLocal
+from .database import engine
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -20,11 +20,8 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 def get_db():
     """Get database session dependency."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    with Session(engine) as session:
+        yield session
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -62,7 +59,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     username: str = payload.get("sub")  # type: ignore[assignment]
     if not username:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
-    user = db.query(User).filter(User.username == username).first()
+    statement = select(User).where(User.username == username)
+    user = db.exec(statement).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     if not user.is_active:

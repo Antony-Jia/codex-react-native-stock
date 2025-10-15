@@ -3,7 +3,7 @@
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from ..core.security import get_current_active_superuser, get_current_user, get_db
 from ..models import Quota, User
@@ -16,7 +16,8 @@ router = APIRouter()
 @router.get("", response_model=List[QuotaRead])
 def list_quotas(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     """List all quotas."""
-    quotas = db.query(Quota).order_by(Quota.id).all()
+    statement = select(Quota).order_by(Quota.id)
+    quotas = db.exec(statement).all()
     for quota in quotas:
         limiter_service.ensure_quota(quota)
     return quotas
@@ -29,8 +30,9 @@ def create_quota(
     _: User = Depends(get_current_active_superuser),
 ):
     """Create a new quota."""
-    quota = db.query(Quota).filter(Quota.id == quota_in.id).first()
-    if quota:
+    statement = select(Quota).where(Quota.id == quota_in.id)
+    existing_quota = db.exec(statement).first()
+    if existing_quota:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Quota already exists")
     quota = Quota(**quota_in.model_dump())
     db.add(quota)
@@ -48,7 +50,8 @@ def update_quota(
     _: User = Depends(get_current_active_superuser),
 ):
     """Update an existing quota."""
-    quota = db.query(Quota).filter(Quota.id == quota_id).first()
+    statement = select(Quota).where(Quota.id == quota_id)
+    quota = db.exec(statement).first()
     if not quota:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quota not found")
     for key, value in quota_in.model_dump(exclude_unset=True).items():
@@ -66,7 +69,8 @@ def toggle_quota(
     _: User = Depends(get_current_active_superuser),
 ):
     """Toggle quota enabled/disabled status."""
-    quota = db.query(Quota).filter(Quota.id == quota_id).first()
+    statement = select(Quota).where(Quota.id == quota_id)
+    quota = db.exec(statement).first()
     if not quota:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Quota not found")
     quota.enabled = not quota.enabled

@@ -3,7 +3,7 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from ..core.security import get_current_user, get_db
 from ..models import Metric, Quota, User
@@ -17,14 +17,11 @@ router = APIRouter()
 def metrics_current(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     """Get current metrics for all quotas."""
     result: list[MetricsCurrentResponse] = []
-    quotas = db.query(Quota).all()
+    statement = select(Quota)
+    quotas = db.exec(statement).all()
     for quota in quotas:
-        metric = (
-            db.query(Metric)
-            .filter(Metric.quota_id == quota.id)
-            .order_by(Metric.ts.desc())
-            .first()
-        )
+        metric_statement = select(Metric).where(Metric.quota_id == quota.id).order_by(Metric.ts.desc()).limit(1)
+        metric = db.exec(metric_statement).first()
         state = limiter_service.states.get(quota.id)
         remain_value = metric.tokens_remain if metric else (state.tokens if state else None)
         result.append(
@@ -47,10 +44,11 @@ def metrics_series(
     _: User = Depends(get_current_user),
 ):
     """Get time series metrics data."""
-    query = db.query(Metric)
+    statement = select(Metric)
     if quota_id:
-        query = query.filter(Metric.quota_id == quota_id)
-    items = query.order_by(Metric.ts.desc()).limit(limit).all()
+        statement = statement.where(Metric.quota_id == quota_id)
+    statement = statement.order_by(Metric.ts.desc()).limit(limit)
+    items = list(db.exec(statement).all())
     items.reverse()
     return MetricsSeriesResponse(
         items=[

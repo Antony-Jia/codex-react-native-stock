@@ -1,36 +1,32 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Iterator
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlmodel import Session, create_engine
 
 from .config import settings
 
 
-data_path = Path(settings.database_url.replace("sqlite:///", "")).parent
-if data_path:
-    data_path.mkdir(parents=True, exist_ok=True)
+# Create engine with PostgreSQL optimizations
+engine = create_engine(
+    settings.database_url,
+    echo=False,
+    pool_pre_ping=True,  # Enable connection health checks
+    pool_size=10,  # Connection pool size
+    max_overflow=20,  # Max overflow connections
+)
 
 
-def _create_engine():
-    connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
-    return create_engine(settings.database_url, echo=False, future=True, connect_args=connect_args)
-
-
-engine = _create_engine()
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-
-
-class Base(DeclarativeBase):
-    pass
+def get_session() -> Session:
+    """Get a new database session."""
+    return Session(engine)
 
 
 @contextmanager
-def session_scope() -> Iterator:
-    session = SessionLocal()
+def session_scope() -> Iterator[Session]:
+    """Context manager for database sessions with automatic commit/rollback."""
+    session = Session(engine)
     try:
         yield session
         session.commit()

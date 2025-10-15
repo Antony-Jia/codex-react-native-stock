@@ -6,10 +6,10 @@ A rate limiting and task scheduling management system for stock crawler.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from sqlmodel import Session, SQLModel, select
 
 from .api import api_router
-from .core import Base, engine, close_redis
+from .core import engine, close_redis
 from .models import Quota
 from .services import init_jobs, limiter_service
 
@@ -34,14 +34,15 @@ app.add_middleware(
 def startup_event() -> None:
     """Initialize database and services on startup."""
     # Create database tables
-    Base.metadata.create_all(bind=engine)
+    SQLModel.metadata.create_all(engine)
     
     # Initialize scheduler jobs
     init_jobs()
     
     # Load existing quotas into limiter service
-    with Session(bind=engine) as session:
-        quotas = session.query(Quota).all()
+    with Session(engine) as session:
+        statement = select(Quota)
+        quotas = session.exec(statement).all()
         for quota in quotas:
             limiter_service.ensure_quota(quota)
 

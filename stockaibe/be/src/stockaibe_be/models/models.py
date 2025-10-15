@@ -3,88 +3,94 @@ from __future__ import annotations
 import datetime as dt
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from ..core.database import Base
+from sqlmodel import Field, Relationship, SQLModel
 
 
-class TimestampMixin:
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: dt.datetime.now(dt.timezone.utc)
+class TimestampMixin(SQLModel):
+    """Mixin for created_at and updated_at timestamps."""
+    created_at: dt.datetime = Field(
+        default_factory=lambda: dt.datetime.now(dt.timezone.utc),
+        nullable=False,
+        sa_column_kwargs={"server_default": "CURRENT_TIMESTAMP"}
     )
-    updated_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: dt.datetime.now(dt.timezone.utc),
-        onupdate=lambda: dt.datetime.now(dt.timezone.utc),
+    updated_at: dt.datetime = Field(
+        default_factory=lambda: dt.datetime.now(dt.timezone.utc),
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": "CURRENT_TIMESTAMP",
+            "onupdate": dt.datetime.now(dt.timezone.utc)
+        }
     )
 
 
-class User(Base, TimestampMixin):
+class User(TimestampMixin, table=True):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    username: Mapped[str] = mapped_column(String(50), unique=True, index=True)
-    hashed_password: Mapped[str] = mapped_column(String(255))
-    full_name: Mapped[Optional[str]] = mapped_column(String(100))
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
+    id: Optional[int] = Field(default=None, primary_key=True, index=True)
+    username: str = Field(max_length=50, unique=True, index=True)
+    hashed_password: str = Field(max_length=255)
+    full_name: Optional[str] = Field(default=None, max_length=100)
+    is_active: bool = Field(default=True)
+    is_superuser: bool = Field(default=False)
 
 
-class Quota(Base, TimestampMixin):
+class Quota(TimestampMixin, table=True):
     __tablename__ = "quotas"
 
-    id: Mapped[str] = mapped_column(String(100), primary_key=True)
-    domain: Mapped[Optional[str]] = mapped_column(String(100))
-    endpoint: Mapped[Optional[str]] = mapped_column(String(255))
-    algo: Mapped[str] = mapped_column(String(50), default="token_bucket")
-    capacity: Mapped[int] = mapped_column(Integer, default=60)
-    refill_rate: Mapped[float] = mapped_column(Float, default=1.0)
-    leak_rate: Mapped[Optional[float]] = mapped_column(Float)
-    burst: Mapped[Optional[int]] = mapped_column(Integer)
-    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    notes: Mapped[Optional[str]] = mapped_column(Text)
+    id: str = Field(primary_key=True, max_length=100)
+    domain: Optional[str] = Field(default=None, max_length=100)
+    endpoint: Optional[str] = Field(default=None, max_length=255)
+    algo: str = Field(default="token_bucket", max_length=50)
+    capacity: int = Field(default=60)
+    refill_rate: float = Field(default=1.0)
+    leak_rate: Optional[float] = Field(default=None)
+    burst: Optional[int] = Field(default=None)
+    enabled: bool = Field(default=True)
+    notes: Optional[str] = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
 
-    metrics: Mapped[list[Metric]] = relationship("Metric", back_populates="quota")
-    traces: Mapped[list[TraceLog]] = relationship("TraceLog", back_populates="quota")
+    # Relationships
+    metrics: list["Metric"] = Relationship(back_populates="quota")
+    traces: list["TraceLog"] = Relationship(back_populates="quota")
 
 
-class Metric(Base):
+class Metric(SQLModel, table=True):
     __tablename__ = "metrics"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    ts: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), index=True)
-    quota_id: Mapped[str] = mapped_column(ForeignKey("quotas.id"), index=True)
-    ok: Mapped[int] = mapped_column(Integer, default=0)
-    err: Mapped[int] = mapped_column(Integer, default=0)
-    r429: Mapped[int] = mapped_column(Integer, default=0)
-    latency_p95: Mapped[Optional[float]] = mapped_column(Float)
-    tokens_remain: Mapped[Optional[float]] = mapped_column(Float)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ts: dt.datetime = Field(index=True)
+    quota_id: str = Field(foreign_key="quotas.id", index=True)
+    ok: int = Field(default=0)
+    err: int = Field(default=0)
+    r429: int = Field(default=0)
+    latency_p95: Optional[float] = Field(default=None)
+    tokens_remain: Optional[float] = Field(default=None)
 
-    quota: Mapped[Quota] = relationship("Quota", back_populates="metrics")
+    # Relationship
+    quota: Optional["Quota"] = Relationship(back_populates="metrics")
 
 
-class TraceLog(Base, TimestampMixin):
+class TraceLog(TimestampMixin, table=True):
     __tablename__ = "traces"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    quota_id: Mapped[str] = mapped_column(ForeignKey("quotas.id"), index=True)
-    status_code: Mapped[int] = mapped_column(Integer)
-    latency_ms: Mapped[Optional[float]] = mapped_column(Float)
-    message: Mapped[Optional[str]] = mapped_column(Text)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    quota_id: str = Field(foreign_key="quotas.id", index=True)
+    status_code: int
+    latency_ms: Optional[float] = Field(default=None)
+    message: Optional[str] = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
 
-    quota: Mapped[Quota] = relationship("Quota", back_populates="traces")
+    # Relationship
+    quota: Optional["Quota"] = Relationship(back_populates="traces")
 
 
-class SchedulerTask(Base, TimestampMixin):
+class SchedulerTask(TimestampMixin, table=True):
     __tablename__ = "scheduler_tasks"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    job_id: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-    name: Mapped[str] = mapped_column(String(100))
-    cron: Mapped[Optional[str]] = mapped_column(String(100))
-    func_path: Mapped[str] = mapped_column(String(255))
-    args: Mapped[Optional[str]] = mapped_column(Text)
-    kwargs: Mapped[Optional[str]] = mapped_column(Text)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    last_run_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime(timezone=True))
+    id: Optional[int] = Field(default=None, primary_key=True)
+    job_id: str = Field(unique=True, index=True, max_length=100)
+    name: str = Field(max_length=100)
+    cron: Optional[str] = Field(default=None, max_length=100)
+    func_path: str = Field(max_length=255)
+    args: Optional[str] = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
+    kwargs: Optional[str] = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
+    is_active: bool = Field(default=True)
+    last_run_at: Optional[dt.datetime] = Field(default=None)

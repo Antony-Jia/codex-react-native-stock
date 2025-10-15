@@ -1,13 +1,12 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pathlib import Path
 
 
 class Settings(BaseSettings):
     secret_key: str = "change-me-secret"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 12
-    database_url: str = f"sqlite:///{Path(__file__).resolve().parent.parent / 'data' / 'limiter.db'}"
-    scheduler_timezone: str = "UTC"
+    database_url: str = "postgresql://stockai:stockai_password@localhost:5432/stockai_limiter"
+    scheduler_timezone: str = "Asia/Shanghai"
     
     # Redis configuration
     redis_url: str = "redis://localhost:6379/0"

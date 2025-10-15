@@ -7,7 +7,7 @@ from typing import AsyncGenerator
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from ..core.security import get_current_user, get_db
 from ..models import User, TraceLog, Quota
@@ -23,13 +23,8 @@ async def event_generator(db: Session) -> AsyncGenerator[str, None]:
     while True:
         try:
             # Query new traces since last check
-            traces = (
-                db.query(TraceLog)
-                .filter(TraceLog.id > last_trace_id)
-                .order_by(TraceLog.id.asc())
-                .limit(10)
-                .all()
-            )
+            statement = select(TraceLog).where(TraceLog.id > last_trace_id).order_by(TraceLog.id.asc()).limit(10)
+            traces = db.exec(statement).all()
             
             for trace in traces:
                 event_data = {
@@ -47,7 +42,8 @@ async def event_generator(db: Session) -> AsyncGenerator[str, None]:
                 last_trace_id = trace.id
             
             # Send current token status
-            quotas = db.query(Quota).filter(Quota.enabled == True).all()
+            statement = select(Quota).where(Quota.enabled == True)
+            quotas = db.exec(statement).all()
             for quota in quotas:
                 tokens = limiter_service.get_current_tokens(quota.id)
                 if tokens is not None:

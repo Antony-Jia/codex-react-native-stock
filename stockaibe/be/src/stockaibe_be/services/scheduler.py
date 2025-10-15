@@ -7,11 +7,10 @@ from typing import Any, Callable
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlmodel import Session, select, func
 
 from ..core.config import settings
-from ..core.database import SessionLocal
+from ..core.database import engine
 from ..core.redis_client import get_redis
 from ..models import SchedulerTask, Metric, Quota
 from .limiter import limiter_service
@@ -21,7 +20,7 @@ scheduler = AsyncIOScheduler(timezone=settings.scheduler_timezone)
 
 
 def _with_session(func: Callable[[Session], Any]) -> None:
-    with SessionLocal() as session:
+    with Session(engine) as session:
         func(session)
 
 
@@ -31,7 +30,8 @@ def snapshot_metrics(session: Session) -> None:
     
     try:
         r = get_redis()
-        quotas = session.query(Quota).all()
+        statement = select(Quota)
+        quotas = session.exec(statement).all()
         
         for quota in quotas:
             # Get stats from Redis for the current minute
@@ -79,27 +79,25 @@ def health_check_job(session: Session) -> None:
     window_start = now - dt.timedelta(minutes=settings.alert_window_minutes)
     
     try:
-        quotas = session.query(Quota).filter(Quota.enabled == True).all()
+        statement = select(Quota).where(Quota.enabled == True)
+        quotas = session.exec(statement).all()
         
         for quota in quotas:
             # Query metrics in the alert window
-            metrics = (
-                session.query(
-                    func.sum(Metric.ok).label("total_ok"),
-                    func.sum(Metric.err).label("total_err"),
-                    func.sum(Metric.r429).label("total_429"),
-                )
-                .filter(
-                    Metric.quota_id == quota.id,
-                    Metric.ts >= window_start,
-                )
-                .first()
+            statement = select(
+                func.sum(Metric.ok).label("total_ok"),
+                func.sum(Metric.err).label("total_err"),
+                func.sum(Metric.r429).label("total_429"),
+            ).where(
+                Metric.quota_id == quota.id,
+                Metric.ts >= window_start,
             )
+            result = session.exec(statement).first()
             
-            if metrics:
-                total_ok = metrics.total_ok or 0
-                total_err = metrics.total_err or 0
-                total_429 = metrics.total_429 or 0
+            if result:
+                total_ok = result[0] or 0
+                total_err = result[1] or 0
+                total_429 = result[2] or 0
                 total_requests = total_ok + total_err + total_429
                 
                 if total_requests > 0:
@@ -135,8 +133,12 @@ def window_reset_job(session: Session) -> None:
         
         # Clean up old metrics (keep last 7 days)
         cutoff = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)
-        deleted = session.query(Metric).filter(Metric.ts < cutoff).delete()
+        statement = select(Metric).where(Metric.ts < cutoff)
+        old_metrics = session.exec(statement).all()
+        for metric in old_metrics:
+            session.delete(metric)
         session.commit()
+        deleted = len(old_metrics)
         
         if deleted > 0:
             print(f"🗑️ Cleaned up {deleted} old metrics")

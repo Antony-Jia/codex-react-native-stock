@@ -47,7 +47,8 @@ const Tasks: React.FC = () => {
     try {
       const data = await apiClient.getTasks();
       setTasks(data);
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       message.error(error.message || '加载任务失败');
     } finally {
       setLoading(false);
@@ -67,7 +68,8 @@ const Tasks: React.FC = () => {
       message.success('任务创建成功');
       setModalVisible(false);
       loadTasks();
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       message.error(error.message || '创建失败');
     } finally {
       setLoading(false);
@@ -78,7 +80,8 @@ const Tasks: React.FC = () => {
     try {
       await apiClient.triggerTask({ job_id: jobId });
       message.success('任务已触发');
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       message.error(error.message || '触发失败');
     }
   };
@@ -88,7 +91,8 @@ const Tasks: React.FC = () => {
       await apiClient.deleteTask(jobId);
       message.success('任务已删除');
       loadTasks();
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       message.error(error.message || '删除失败');
     }
   };

@@ -38,8 +38,9 @@ const Dashboard: React.FC = () => {
       setCurrentMetrics(metrics);
       setSeriesData(series.items);
       setError(null);
-    } catch (err: any) {
-      setError(err.message || '加载数据失败');
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || '加载数据失败');
     } finally {
       setLoading(false);
     }

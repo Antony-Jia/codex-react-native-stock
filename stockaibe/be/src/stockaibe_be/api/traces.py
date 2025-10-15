@@ -3,7 +3,7 @@
 from typing import List
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 
 from ..core.security import get_current_user, get_db
 from ..models import TraceLog, User
@@ -15,5 +15,6 @@ router = APIRouter()
 @router.get("", response_model=List[TraceRead])
 def traces(limit: int = 50, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     """Get recent trace logs."""
-    items = db.query(TraceLog).order_by(TraceLog.created_at.desc()).limit(limit).all()
+    statement = select(TraceLog).order_by(TraceLog.created_at.desc()).limit(limit)
+    items = db.exec(statement).all()
     return items
