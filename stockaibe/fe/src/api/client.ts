@@ -1,0 +1,175 @@
+/**
+ * API client for StockCrawler Limiter Admin
+ */
+
+import axios, { AxiosInstance, AxiosError } from 'axios';
+import type {
+  User,
+  LoginRequest,
+  RegisterRequest,
+  Token,
+  Quota,
+  QuotaCreate,
+  QuotaUpdate,
+  MetricsCurrent,
+  MetricsSeriesResponse,
+  Trace,
+  Task,
+  TaskCreate,
+  TaskTrigger,
+} from '../types/api';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+
+class ApiClient {
+  private client: AxiosInstance;
+  private token: string | null = null;
+
+  constructor() {
+    this.client = axios.create({
+      baseURL: API_BASE_URL,
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Load token from localStorage
+    this.token = localStorage.getItem('access_token');
+    if (this.token) {
+      this.setAuthHeader(this.token);
+    }
+
+    // Response interceptor for error handling
+    this.client.interceptors.response.use(
+      (response) => response,
+      (error: AxiosError) => {
+        if (error.response?.status === 401) {
+          // Token expired or invalid
+          this.clearAuth();
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  private setAuthHeader(token: string) {
+    this.client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  }
+
+  private clearAuth() {
+    this.token = null;
+    localStorage.removeItem('access_token');
+    delete this.client.defaults.headers.common['Authorization'];
+  }
+
+  // Auth API
+  async login(data: LoginRequest): Promise<Token> {
+    const formData = new FormData();
+    formData.append('username', data.username);
+    formData.append('password', data.password);
+    
+    const response = await this.client.post<Token>('/auth/login', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    
+    this.token = response.data.access_token;
+    localStorage.setItem('access_token', this.token);
+    this.setAuthHeader(this.token);
+    
+    return response.data;
+  }
+
+  async register(data: RegisterRequest): Promise<User> {
+    const response = await this.client.post<User>('/auth/register', data);
+    return response.data;
+  }
+
+  async getCurrentUser(): Promise<User> {
+    const response = await this.client.get<User>('/auth/me');
+    return response.data;
+  }
+
+  logout() {
+    this.clearAuth();
+  }
+
+  isAuthenticated(): boolean {
+    return this.token !== null;
+  }
+
+  // Quota API
+  async getQuotas(): Promise<Quota[]> {
+    const response = await this.client.get<Quota[]>('/quotas');
+    return response.data;
+  }
+
+  async createQuota(data: QuotaCreate): Promise<Quota> {
+    const response = await this.client.post<Quota>('/quotas', data);
+    return response.data;
+  }
+
+  async updateQuota(quotaId: string, data: QuotaUpdate): Promise<Quota> {
+    const response = await this.client.put<Quota>(`/quotas/${quotaId}`, data);
+    return response.data;
+  }
+
+  async toggleQuota(quotaId: string): Promise<Quota> {
+    const response = await this.client.post<Quota>(`/quotas/${quotaId}/toggle`);
+    return response.data;
+  }
+
+  // Metrics API
+  async getCurrentMetrics(): Promise<MetricsCurrent[]> {
+    const response = await this.client.get<MetricsCurrent[]>('/metrics/current');
+    return response.data;
+  }
+
+  async getMetricsSeries(quotaId?: string, limit: number = 100): Promise<MetricsSeriesResponse> {
+    const params = new URLSearchParams();
+    if (quotaId) params.append('quota_id', quotaId);
+    params.append('limit', limit.toString());
+    
+    const response = await this.client.get<MetricsSeriesResponse>('/metrics/series', { params });
+    return response.data;
+  }
+
+  // Traces API
+  async getTraces(limit: number = 100): Promise<Trace[]> {
+    const response = await this.client.get<Trace[]>('/traces', {
+      params: { limit },
+    });
+    return response.data;
+  }
+
+  // Tasks API
+  async getTasks(): Promise<Task[]> {
+    const response = await this.client.get<Task[]>('/tasks');
+    return response.data;
+  }
+
+  async createTask(data: TaskCreate): Promise<Task> {
+    const response = await this.client.post<Task>('/tasks', data);
+    return response.data;
+  }
+
+  async triggerTask(data: TaskTrigger): Promise<{ message: string }> {
+    const response = await this.client.post<{ message: string }>('/tasks/trigger', data);
+    return response.data;
+  }
+
+  async deleteTask(jobId: string): Promise<{ message: string }> {
+    const response = await this.client.delete<{ message: string }>(`/tasks/${jobId}`);
+    return response.data;
+  }
+
+  // SSE Events
+  getEventsStreamUrl(): string {
+    const token = this.token || localStorage.getItem('access_token');
+    return `${API_BASE_URL}/events/stream?token=${token}`;
+  }
+}
+
+export const apiClient = new ApiClient();
+export default apiClient;

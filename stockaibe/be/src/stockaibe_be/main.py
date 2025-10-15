@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from .api import api_router
-from .core import Base, engine
+from .core import Base, engine, close_redis
 from .models import Quota
 from .services import init_jobs, limiter_service
 
@@ -44,6 +44,12 @@ def startup_event() -> None:
         quotas = session.query(Quota).all()
         for quota in quotas:
             limiter_service.ensure_quota(quota)
+
+
+@app.on_event("shutdown")
+def shutdown_event() -> None:
+    """Clean up resources on shutdown."""
+    close_redis()
 
 
 @app.get("/health")

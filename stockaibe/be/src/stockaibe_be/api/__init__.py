@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from . import auth, limiter, metrics, quotas, tasks, traces
+from . import auth, limiter, metrics, quotas, tasks, traces, events
 
 api_router = APIRouter()
 
@@ -13,5 +13,6 @@ api_router.include_router(limiter.router, prefix="/limiter", tags=["limiter"])
 api_router.include_router(metrics.router, prefix="/metrics", tags=["metrics"])
 api_router.include_router(traces.router, prefix="/traces", tags=["traces"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
+api_router.include_router(events.router, prefix="/events", tags=["events"])
 
 __all__ = ["api_router"]

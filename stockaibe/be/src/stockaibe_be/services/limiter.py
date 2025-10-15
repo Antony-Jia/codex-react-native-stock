@@ -1,16 +1,56 @@
+"""Rate limiter service with Redis + Lua script implementation."""
+
 from __future__ import annotations
 
 import datetime as dt
+import time
 from dataclasses import dataclass, field
-from typing import Dict
+from typing import Dict, Optional
 
+import redis
 from sqlalchemy.orm import Session
 
+from ..core import get_redis
 from ..models import Metric, Quota, TraceLog
+
+
+# Lua script for token bucket rate limiting with atomic operations
+LUA_TOKEN_BUCKET_SCRIPT = """
+local quota_key = KEYS[1]
+local stats_key = KEYS[2]
+local now = tonumber(ARGV[1])
+local capacity = tonumber(ARGV[2])
+local refill_rate = tonumber(ARGV[3])
+local cost = tonumber(ARGV[4])
+
+-- Get current tokens and last refill time
+local tokens = tonumber(redis.call('GET', quota_key .. ':tokens')) or capacity
+local last_refill = tonumber(redis.call('GET', quota_key .. ':last_refill')) or now
+
+-- Calculate refill
+local elapsed = now - last_refill
+local added = elapsed * refill_rate
+tokens = math.min(capacity, tokens + added)
+
+-- Try to acquire
+local allowed = 0
+if tokens >= cost then
+    tokens = tokens - cost
+    allowed = 1
+end
+
+-- Update Redis
+redis.call('SET', quota_key .. ':tokens', tokens)
+redis.call('SET', quota_key .. ':last_refill', now)
+
+-- Return: allowed (0/1), remaining tokens
+return {allowed, tokens}
+"""
 
 
 @dataclass
 class BucketState:
+    """In-memory bucket state for fallback when Redis is unavailable."""
     tokens: float
     last_refill: dt.datetime
     capacity: int
@@ -38,10 +78,32 @@ class BucketState:
 
 @dataclass
 class LimiterService:
+    """Rate limiter service with Redis + Lua script support."""
     states: Dict[str, BucketState] = field(default_factory=dict)
+    _redis: Optional[redis.Redis] = None
+    _lua_sha: Optional[str] = None
+    _use_redis: bool = True
+
+    def _get_redis(self) -> Optional[redis.Redis]:
+        """Get Redis client, cache it, and handle connection errors."""
+        if not self._use_redis:
+            return None
+        if self._redis is None:
+            try:
+                self._redis = get_redis()
+                # Load Lua script
+                self._lua_sha = self._redis.script_load(LUA_TOKEN_BUCKET_SCRIPT)
+            except Exception as e:
+                print(f"Redis connection failed, falling back to memory: {e}")
+                self._use_redis = False
+                return None
+        return self._redis
 
     def ensure_quota(self, quota: Quota) -> None:
+        """Ensure quota is initialized in Redis or memory."""
         now = dt.datetime.now(dt.timezone.utc)
+        
+        # Always maintain memory state as fallback
         if quota.id not in self.states:
             self.states[quota.id] = BucketState(
                 tokens=float(quota.capacity),
@@ -56,9 +118,67 @@ class LimiterService:
             state.refill_rate = quota.refill_rate
             state.leak_rate = quota.leak_rate
             state.tokens = min(state.tokens, quota.capacity)
+        
+        # Initialize Redis if available
+        r = self._get_redis()
+        if r:
+            try:
+                quota_key = f"quota:{quota.id}"
+                if not r.exists(f"{quota_key}:tokens"):
+                    r.set(f"{quota_key}:tokens", quota.capacity)
+                    r.set(f"{quota_key}:last_refill", time.time())
+            except Exception as e:
+                print(f"Redis initialization failed for {quota.id}: {e}")
 
     def remove_quota(self, quota_id: str) -> None:
+        """Remove quota from memory and Redis."""
         self.states.pop(quota_id, None)
+        r = self._get_redis()
+        if r:
+            try:
+                quota_key = f"quota:{quota_id}"
+                r.delete(f"{quota_key}:tokens", f"{quota_key}:last_refill")
+            except Exception:
+                pass
+
+    def _acquire_redis(
+        self, quota: Quota, cost: int
+    ) -> tuple[bool, float]:
+        """Acquire tokens using Redis + Lua script."""
+        r = self._get_redis()
+        if not r or not self._lua_sha:
+            raise RuntimeError("Redis not available")
+        
+        quota_key = f"quota:{quota.id}"
+        minute_key = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d%H%M")
+        stats_key = f"stats:{quota.id}:{minute_key}"
+        
+        now = time.time()
+        result = r.evalsha(
+            self._lua_sha,
+            2,  # number of keys
+            quota_key,
+            stats_key,
+            now,
+            quota.capacity,
+            quota.refill_rate,
+            cost,
+        )
+        
+        allowed = bool(result[0])
+        remain = float(result[1])
+        return allowed, remain
+
+    def _acquire_memory(
+        self, quota: Quota, cost: int
+    ) -> tuple[bool, float]:
+        """Acquire tokens using in-memory state (fallback)."""
+        now = dt.datetime.now(dt.timezone.utc)
+        self.ensure_quota(quota)
+        state = self.states[quota.id]
+        allowed = state.acquire(cost, now)
+        remain = state.tokens
+        return allowed, remain
 
     def acquire(
         self,
@@ -69,12 +189,25 @@ class LimiterService:
         latency_ms: float | None = None,
         message: str | None = None,
     ) -> tuple[bool, float]:
+        """Acquire tokens with rate limiting."""
         now = dt.datetime.now(dt.timezone.utc)
-        self.ensure_quota(quota)
-        state = self.states[quota.id]
-        allowed = quota.enabled and state.acquire(cost, now)
-        remain = state.tokens
-
+        
+        # Try Redis first, fallback to memory
+        try:
+            if self._use_redis:
+                allowed, remain = self._acquire_redis(quota, cost)
+            else:
+                allowed, remain = self._acquire_memory(quota, cost)
+        except Exception as e:
+            print(f"Acquire failed, using memory fallback: {e}")
+            self._use_redis = False
+            allowed, remain = self._acquire_memory(quota, cost)
+        
+        # Apply enabled check
+        if not quota.enabled:
+            allowed = False
+        
+        # Record trace
         trace = TraceLog(
             quota_id=quota.id,
             status_code=200 if allowed and success else 429 if not allowed else 500,
@@ -82,18 +215,45 @@ class LimiterService:
             message=message,
         )
         db.add(trace)
-
-        metric = Metric(
-            ts=now,
-            quota_id=quota.id,
-            ok=1 if allowed and success else 0,
-            err=1 if allowed and not success else 0,
-            r429=0 if allowed else 1,
-            latency_p95=latency_ms,
-            tokens_remain=remain,
-        )
-        db.add(metric)
+        
+        # Update stats in Redis
+        r = self._get_redis()
+        if r:
+            try:
+                minute_key = now.strftime("%Y%m%d%H%M")
+                stats_key = f"stats:{quota.id}:{minute_key}"
+                pipe = r.pipeline()
+                if allowed and success:
+                    pipe.hincrby(stats_key, "ok", 1)
+                elif allowed and not success:
+                    pipe.hincrby(stats_key, "err", 1)
+                else:
+                    pipe.hincrby(stats_key, "r429", 1)
+                if latency_ms:
+                    pipe.hincrbyfloat(stats_key, "latency_sum", latency_ms)
+                    pipe.hincrby(stats_key, "latency_count", 1)
+                pipe.expire(stats_key, 3600)  # Keep for 1 hour
+                pipe.execute()
+            except Exception as e:
+                print(f"Failed to update Redis stats: {e}")
+        
         return allowed, remain
+    
+    def get_current_tokens(self, quota_id: str) -> Optional[float]:
+        """Get current token count for a quota."""
+        r = self._get_redis()
+        if r:
+            try:
+                quota_key = f"quota:{quota_id}"
+                tokens = r.get(f"{quota_key}:tokens")
+                if tokens:
+                    return float(tokens)
+            except Exception:
+                pass
+        
+        # Fallback to memory
+        state = self.states.get(quota_id)
+        return state.tokens if state else None
 
 
 limiter_service = LimiterService()
