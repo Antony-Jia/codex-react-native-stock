@@ -6,7 +6,7 @@ from typing import Dict
 
 from sqlalchemy.orm import Session
 
-from .models import Metric, Quota, TraceLog
+from ..models import Metric, Quota, TraceLog
 
 
 @dataclass

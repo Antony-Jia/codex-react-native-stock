@@ -7,9 +7,9 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy.orm import Session
 
-from .config import settings
-from .database import SessionLocal
-from .models import SchedulerTask
+from ..core.config import settings
+from ..core.database import SessionLocal
+from ..models import SchedulerTask
 
 
 scheduler = AsyncIOScheduler(timezone=settings.scheduler_timezone)

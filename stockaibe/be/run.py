@@ -1,0 +1,17 @@
+"""
+Development server runner for StockCrawler Limiter Admin.
+
+Usage:
+    python run.py
+"""
+
+import uvicorn
+
+if __name__ == "__main__":
+    uvicorn.run(
+        "stockaibe_be.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+        log_level="info",
+    )
