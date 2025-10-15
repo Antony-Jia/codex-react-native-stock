@@ -13,8 +13,10 @@ from ..core.config import settings
 from ..core.database import engine
 from ..core.redis_client import get_redis
 from ..core.logging_config import get_logger
-from ..models import SchedulerTask, Metric, Quota
+from ..models import SchedulerTask, Metric, Quota, TraceLog
 from .limiter import limiter_service
+from .task_decorators import get_task_by_id
+from .task_registry import initialize_task_system, get_active_tasks
 
 # 获取日志记录器
 logger = get_logger(__name__)
@@ -154,13 +156,164 @@ def window_reset_job(session: Session) -> None:
         session.rollback()
 
 
-def init_jobs() -> None:
-    """Initialize all periodic jobs."""
+def _execute_limiter_task(job_id: str, session: Session) -> None:
+    """执行限流任务，应用配额限制"""
+    import time
+    
+    task_info = get_task_by_id(job_id)
+    if not task_info:
+        logger.error(f"任务 {job_id} 未找到")
+        return
+    
+    metadata = task_info["metadata"]
+    func = task_info["func"]
+    
+    # 获取关联的配额
+    quota = None
+    if metadata.quota_name:
+        statement = select(Quota).where(Quota.id == metadata.quota_name)
+        quota = session.exec(statement).first()
+    
+    start_time = time.time()
+    success = False
+    error_msg = None
+    
+    try:
+        if quota and quota.enabled:
+            # 尝试获取令牌
+            allowed, remain = limiter_service.acquire(
+                db=session,
+                quota=quota,
+                cost=1,
+                success=False,  # 先标记为 False，执行成功后更新
+                message=f"执行任务: {metadata.name}",
+            )
+            
+            if not allowed:
+                logger.warning(f"⚠️ 任务 {job_id} 被限流，剩余令牌: {remain}")
+                return
+            
+            # 执行任务
+            func(session)
+            success = True
+            
+            # 更新为成功状态
+            latency_ms = (time.time() - start_time) * 1000
+            trace = TraceLog(
+                quota_id=quota.id,
+                status_code=200,
+                latency_ms=latency_ms,
+                message=f"任务执行成功: {metadata.name}",
+            )
+            session.add(trace)
+        else:
+            # 无配额限制或配额未启用，直接执行
+            func(session)
+            success = True
+            logger.info(f"✓ 任务 {job_id} 执行成功（无限流）")
+    
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"✗ 任务 {job_id} 执行失败: {e}", exc_info=True)
+        
+        # 记录错误
+        if quota:
+            latency_ms = (time.time() - start_time) * 1000
+            trace = TraceLog(
+                quota_id=quota.id,
+                status_code=500,
+                latency_ms=latency_ms,
+                message=f"任务执行失败: {error_msg}",
+            )
+            session.add(trace)
+    
+    finally:
+        # 更新任务最后执行时间
+        statement = select(SchedulerTask).where(SchedulerTask.job_id == job_id)
+        db_task = session.exec(statement).first()
+        if db_task:
+            db_task.last_run_at = dt.datetime.now(dt.timezone.utc)
+        session.commit()
+
+
+def _execute_scheduler_task(job_id: str, session: Session) -> None:
+    """执行普通调度任务"""
+    task_info = get_task_by_id(job_id)
+    if not task_info:
+        logger.error(f"任务 {job_id} 未找到")
+        return
+    
+    metadata = task_info["metadata"]
+    func = task_info["func"]
+    
+    try:
+        func(session)
+        logger.info(f"✓ 任务 {job_id} ({metadata.name}) 执行成功")
+    except Exception as e:
+        logger.error(f"✗ 任务 {job_id} 执行失败: {e}", exc_info=True)
+    finally:
+        # 更新任务最后执行时间
+        statement = select(SchedulerTask).where(SchedulerTask.job_id == job_id)
+        db_task = session.exec(statement).first()
+        if db_task:
+            db_task.last_run_at = dt.datetime.now(dt.timezone.utc)
+        session.commit()
+
+
+def load_decorator_tasks() -> None:
+    """加载装饰器定义的任务到调度器"""
+    with Session(engine) as session:
+        active_tasks = get_active_tasks(session)
+        
+        for task in active_tasks:
+            # 检查任务是否已在调度器中
+            if scheduler.get_job(task.job_id):
+                continue
+            
+            # 根据任务类型选择执行器
+            if task.task_type == "limiter":
+                executor = lambda job_id=task.job_id: _with_session(
+                    lambda s: _execute_limiter_task(job_id, s)
+                )
+            else:
+                executor = lambda job_id=task.job_id: _with_session(
+                    lambda s: _execute_scheduler_task(job_id, s)
+                )
+            
+            # 添加到调度器
+            if task.cron:
+                try:
+                    trigger = CronTrigger.from_crontab(task.cron)
+                    scheduler.add_job(
+                        executor,
+                        trigger=trigger,
+                        id=task.job_id,
+                        name=task.name,
+                        replace_existing=True,
+                    )
+                    logger.info(f"✓ 已加载任务: {task.job_id} ({task.name})")
+                except Exception as e:
+                    logger.error(f"✗ 加载任务失败 {task.job_id}: {e}")
+
+
+def init_jobs(tasks_dir: str = None) -> None:
+    """初始化所有定时任务
+    
+    Args:
+        tasks_dir: 任务模块目录，如果提供则扫描并加载装饰器任务
+    """
     logger.info("初始化定时任务...")
     if not scheduler.running:
         scheduler.start()
         logger.info("调度器已启动")
     
+    # 如果提供了任务目录，初始化装饰器任务系统
+    if tasks_dir:
+        with Session(engine) as session:
+            initialize_task_system(session, tasks_dir)
+        load_decorator_tasks()
+    
+    # 内置系统任务
     # Snapshot metrics every minute
     if not scheduler.get_job("snapshot_metrics"):
         scheduler.add_job(

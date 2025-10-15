@@ -9,7 +9,9 @@ from .core.logging_config import setup_logging
 setup_logging()
 
 import logging
+import os
 import traceback
+from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -66,9 +68,19 @@ def startup_event() -> None:
     logger.info("创建数据库表...")
     SQLModel.metadata.create_all(engine)
     
-    # Initialize scheduler jobs
+    # Determine tasks directory
+    # 获取项目根目录下的 tasks 目录
+    project_root = Path(__file__).parent.parent.parent
+    tasks_dir = project_root / "tasks"
+    
+    # Initialize scheduler jobs with decorator tasks
     logger.info("初始化调度任务...")
-    init_jobs()
+    if tasks_dir.exists():
+        logger.info(f"任务目录: {tasks_dir}")
+        init_jobs(tasks_dir=str(tasks_dir))
+    else:
+        logger.warning(f"任务目录不存在: {tasks_dir}，仅加载内置任务")
+        init_jobs()
     
     # Load existing quotas into limiter service
     logger.info("加载配额配置到限流服务...")
@@ -78,7 +90,7 @@ def startup_event() -> None:
         logger.info(f"找到 {len(quotas)} 个配额配置")
         for quota in quotas:
             limiter_service.ensure_quota(quota)
-            logger.debug(f"加载配额: {quota.name}")
+            logger.debug(f"加载配额: {quota.id}")
     
     logger.info("应用启动完成")
 

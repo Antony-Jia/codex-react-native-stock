@@ -76,9 +76,12 @@ class SchedulerTask(TimestampMixin, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     job_id: str = Field(unique=True, index=True, max_length=100)
     name: str = Field(max_length=100)
+    task_type: str = Field(default="scheduler", max_length=20)  # "scheduler" or "limiter"
     cron: Optional[str] = Field(default=None, max_length=100)
+    quota_name: Optional[str] = Field(default=None, max_length=100)  # For limiter tasks
     func_path: str = Field(max_length=255)
     args: Optional[str] = Field(default=None, sa_column=Column(Text))
     kwargs: Optional[str] = Field(default=None, sa_column=Column(Text))
     is_active: bool = Field(default=True)
     last_run_at: Optional[dt.datetime] = Field(default=None)
+    description: Optional[str] = Field(default=None, sa_column=Column(Text))
