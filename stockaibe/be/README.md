@@ -42,8 +42,45 @@ be/
 
 ## 快速开始
 
+### 环境要求
+
+- Python 3.13+ (推荐使用 conda 的 stockai 环境)
+- PostgreSQL 数据库
+- Redis 服务器
+
+### 配置说明
+
+1. 复制 `env.example` 为 `.env`:
+```bash
+cp env.example .env
+```
+
+2. 编辑 `.env` 文件，配置数据库和 Redis 连接（所有配置项使用 `LIMITER_` 前缀）：
+
+```bash
+# 安全配置
+LIMITER_SECRET_KEY=your-secret-key-here
+
+# PostgreSQL 数据库配置
+LIMITER_DATABASE_URL=postgresql://postgres:password@127.0.0.1:5432/stockai
+
+# Redis 配置
+LIMITER_REDIS_URL=redis://:password@localhost:6379/0
+
+# 时区配置
+LIMITER_SCHEDULER_TIMEZONE=Asia/Shanghai
+```
+
 ### 安装依赖
 
+使用 conda 的 stockai 环境（推荐）:
+```bash
+conda activate stockai
+cd stockaibe/be
+pip install -r requirements.txt  # 如果有
+```
+
+或使用 Poetry:
 ```bash
 cd stockaibe/be
 poetry install
@@ -51,24 +88,38 @@ poetry install
 
 ### 启动开发服务器
 
+**方式1: 使用启动脚本（推荐）**
 ```bash
-# 方式1: 使用启动脚本
-python run.py
+# Windows PowerShell
+.\start_server.ps1
 
-# 方式2: 使用poetry命令
-poetry run uvicorn stockaibe_be.main:app --reload --host 0.0.0.0 --port 8000
+# Windows CMD
+start_server.bat
 ```
 
-### 配置说明
-
-默认配置会在 `src/data/limiter.db` 创建 SQLite 数据库。
-
-可通过环境变量或 `.env` 文件自定义配置（前缀 `LIMITER_`）：
-
+**方式2: 使用 conda 环境直接启动**
 ```bash
-LIMITER_SECRET_KEY=your-secret-key
-LIMITER_DATABASE_URL=sqlite:///path/to/db.db
-LIMITER_SCHEDULER_TIMEZONE=Asia/Shanghai
+# 从 src 目录启动
+cd src
+C:\Users\Admin\anaconda3\envs\stockai\Scripts\uvicorn.exe stockaibe_be.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**方式3: 使用 conda run 命令**
+```bash
+cd src
+conda run -n stockai uvicorn stockaibe_be.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### 测试连接
+
+启动服务器后，可以使用测试脚本验证所有连接：
+```bash
+conda run -n stockai python test_startup.py
+```
+
+或访问健康检查端点：
+```bash
+curl http://localhost:8000/health
 ```
 
 ### 首次使用

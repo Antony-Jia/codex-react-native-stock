@@ -1,4 +1,22 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+# Find .env file - check current dir, parent dir, and project root
+def find_env_file() -> str:
+    """Find .env file in current dir, parent dir, or project root."""
+    # Start from the directory containing this file
+    current = Path(__file__).resolve().parent
+    
+    # Check parent directories up to 5 levels
+    for _ in range(5):
+        env_path = current / ".env"
+        if env_path.exists():
+            return str(env_path)
+        current = current.parent
+    
+    # Fallback to relative path
+    return ".env"
 
 
 class Settings(BaseSettings):
@@ -17,7 +35,12 @@ class Settings(BaseSettings):
     alert_429_rate_threshold: float = 0.3  # 30% 429 rate
     alert_window_minutes: int = 3  # Alert if threshold exceeded for 3 minutes
 
-    model_config = SettingsConfigDict(env_prefix="LIMITER_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="LIMITER_", 
+        env_file=find_env_file(), 
+        env_file_encoding='utf-8',
+        extra="ignore"
+    )
 
 
 settings = Settings()
