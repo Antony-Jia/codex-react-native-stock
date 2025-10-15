@@ -3,7 +3,8 @@ from __future__ import annotations
 import datetime as dt
 from typing import Optional
 
-from sqlmodel import Field, Relationship, SQLModel
+from sqlalchemy import Text, text
+from sqlmodel import Field, SQLModel, Column
 
 
 class TimestampMixin(SQLModel):
@@ -11,15 +12,12 @@ class TimestampMixin(SQLModel):
     created_at: dt.datetime = Field(
         default_factory=lambda: dt.datetime.now(dt.timezone.utc),
         nullable=False,
-        sa_column_kwargs={"server_default": "CURRENT_TIMESTAMP"}
+        sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
     )
     updated_at: dt.datetime = Field(
         default_factory=lambda: dt.datetime.now(dt.timezone.utc),
         nullable=False,
-        sa_column_kwargs={
-            "server_default": "CURRENT_TIMESTAMP",
-            "onupdate": dt.datetime.now(dt.timezone.utc)
-        }
+        sa_column_kwargs={"server_default": text("CURRENT_TIMESTAMP")}
     )
 
 
@@ -46,11 +44,7 @@ class Quota(TimestampMixin, table=True):
     leak_rate: Optional[float] = Field(default=None)
     burst: Optional[int] = Field(default=None)
     enabled: bool = Field(default=True)
-    notes: Optional[str] = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
-
-    # Relationships
-    metrics: list["Metric"] = Relationship(back_populates="quota")
-    traces: list["TraceLog"] = Relationship(back_populates="quota")
+    notes: Optional[str] = Field(default=None, sa_column=Column(Text))
 
 
 class Metric(SQLModel, table=True):
@@ -65,9 +59,6 @@ class Metric(SQLModel, table=True):
     latency_p95: Optional[float] = Field(default=None)
     tokens_remain: Optional[float] = Field(default=None)
 
-    # Relationship
-    quota: Optional["Quota"] = Relationship(back_populates="metrics")
-
 
 class TraceLog(TimestampMixin, table=True):
     __tablename__ = "traces"
@@ -76,10 +67,7 @@ class TraceLog(TimestampMixin, table=True):
     quota_id: str = Field(foreign_key="quotas.id", index=True)
     status_code: int
     latency_ms: Optional[float] = Field(default=None)
-    message: Optional[str] = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
-
-    # Relationship
-    quota: Optional["Quota"] = Relationship(back_populates="traces")
+    message: Optional[str] = Field(default=None, sa_column=Column(Text))
 
 
 class SchedulerTask(TimestampMixin, table=True):
@@ -90,7 +78,7 @@ class SchedulerTask(TimestampMixin, table=True):
     name: str = Field(max_length=100)
     cron: Optional[str] = Field(default=None, max_length=100)
     func_path: str = Field(max_length=255)
-    args: Optional[str] = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
-    kwargs: Optional[str] = Field(default=None, sa_column_kwargs={"type_": "TEXT"})
+    args: Optional[str] = Field(default=None, sa_column=Column(Text))
+    kwargs: Optional[str] = Field(default=None, sa_column=Column(Text))
     is_active: bool = Field(default=True)
     last_run_at: Optional[dt.datetime] = Field(default=None)
