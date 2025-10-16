@@ -40,6 +40,7 @@ class UserLogin(BaseModel):
 
 class QuotaBase(BaseModel):
     id: str
+    name: Optional[str] = None
     domain: Optional[str] = None
     endpoint: Optional[str] = None
     algo: str = "token_bucket"
@@ -56,6 +57,7 @@ class QuotaCreate(QuotaBase):
 
 
 class QuotaUpdate(BaseModel):
+    name: Optional[str] = None
     domain: Optional[str] = None
     endpoint: Optional[str] = None
     algo: Optional[str] = None
@@ -70,6 +72,7 @@ class QuotaUpdate(BaseModel):
 class QuotaRead(QuotaBase):
     created_at: dt.datetime
     updated_at: dt.datetime
+    current_tokens: Optional[float] = None
     
     model_config = {"from_attributes": True}
 

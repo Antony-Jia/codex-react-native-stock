@@ -42,6 +42,7 @@ export interface Quota {
   notes?: string;
   created_at: string;
   updated_at: string;
+  current_tokens?: number;
 }
 
 export interface QuotaCreate {

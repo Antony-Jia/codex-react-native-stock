@@ -2,7 +2,7 @@
  * Quotas Management Page
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Card,
   Table,
@@ -18,6 +18,8 @@ import {
   Tag,
   Popconfirm,
   Typography,
+  Progress,
+  Tooltip,
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,6 +27,7 @@ import {
   PoweroffOutlined,
   CheckCircleOutlined,
   StopOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../api/client';
@@ -39,10 +42,28 @@ const Quotas: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingQuota, setEditingQuota] = useState<Quota | null>(null);
   const [form] = Form.useForm();
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshInterval, setRefreshInterval] = useState(10); // 默认10秒
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadQuotas();
   }, []);
+
+  useEffect(() => {
+    // 设置自动刷新
+    if (autoRefresh && refreshInterval > 0) {
+      timerRef.current = setInterval(() => {
+        loadQuotas();
+      }, refreshInterval * 1000);
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [autoRefresh, refreshInterval]);
 
   const loadQuotas = async () => {
     setLoading(true);
@@ -153,6 +174,29 @@ const Quotas: React.FC = () => {
       render: (rate: number) => `${rate}/s`,
     },
     {
+      title: '剩余令牌',
+      dataIndex: 'current_tokens',
+      key: 'current_tokens',
+      width: 200,
+      render: (tokens: number | undefined, record: Quota) => {
+        if (tokens === undefined || tokens === null) {
+          return <Tag color="default">-</Tag>;
+        }
+        const percent = Math.round((tokens / record.capacity) * 100);
+        const color = percent > 50 ? 'success' : percent > 20 ? 'warning' : 'exception';
+        return (
+          <Tooltip title={`${tokens.toFixed(2)} / ${record.capacity}`}>
+            <Progress
+              percent={percent}
+              size="small"
+              status={color === 'exception' ? 'exception' : 'normal'}
+              strokeColor={color === 'success' ? '#52c41a' : color === 'warning' ? '#faad14' : '#ff4d4f'}
+            />
+          </Tooltip>
+        );
+      },
+    },
+    {
       title: '状态',
       dataIndex: 'enabled',
       key: 'enabled',
@@ -215,9 +259,35 @@ const Quotas: React.FC = () => {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={3}>配额管理</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-          新建配额
-        </Button>
+        <Space>
+          <Space.Compact>
+            <Button
+              icon={<ReloadOutlined spin={loading} />}
+              onClick={() => loadQuotas()}
+              disabled={loading}
+            >
+              刷新
+            </Button>
+            <Switch
+              checked={autoRefresh}
+              onChange={setAutoRefresh}
+              checkedChildren="自动"
+              unCheckedChildren="手动"
+            />
+            <InputNumber
+              min={1}
+              max={300}
+              value={refreshInterval}
+              onChange={(val) => setRefreshInterval(val || 10)}
+              addonAfter="秒"
+              style={{ width: 100 }}
+              disabled={!autoRefresh}
+            />
+          </Space.Compact>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+            新建配额
+          </Button>
+        </Space>
       </div>
 
       <Card>

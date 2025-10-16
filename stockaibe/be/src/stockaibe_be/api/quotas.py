@@ -15,12 +15,20 @@ router = APIRouter()
 
 @router.get("", response_model=List[QuotaRead])
 def list_quotas(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    """List all quotas."""
+    """List all quotas with current token counts."""
     statement = select(Quota).order_by(Quota.id)
     quotas = db.exec(statement).all()
+    
+    # Build response with current tokens
+    result = []
     for quota in quotas:
         limiter_service.ensure_quota(quota)
-    return quotas
+        current_tokens = limiter_service.get_current_tokens(quota.id)
+        quota_dict = quota.model_dump()
+        quota_dict['current_tokens'] = current_tokens
+        result.append(QuotaRead(**quota_dict))
+    
+    return result
 
 
 @router.post("", response_model=QuotaRead)
