@@ -23,6 +23,7 @@ class TimestampMixin(SQLModel):
 
 class User(TimestampMixin, table=True):
     __tablename__ = "users"
+    __table_args__ = {"extend_existing": True}
 
     id: Optional[int] = Field(default=None, primary_key=True, index=True)
     username: str = Field(max_length=50, unique=True, index=True)
@@ -34,6 +35,7 @@ class User(TimestampMixin, table=True):
 
 class Quota(TimestampMixin, table=True):
     __tablename__ = "quotas"
+    __table_args__ = {"extend_existing": True}
 
     id: str = Field(primary_key=True, max_length=100)
     domain: Optional[str] = Field(default=None, max_length=100)
@@ -49,6 +51,7 @@ class Quota(TimestampMixin, table=True):
 
 class Metric(SQLModel, table=True):
     __tablename__ = "metrics"
+    __table_args__ = {"extend_existing": True}
 
     id: Optional[int] = Field(default=None, primary_key=True)
     ts: dt.datetime = Field(index=True)
@@ -62,6 +65,7 @@ class Metric(SQLModel, table=True):
 
 class TraceLog(TimestampMixin, table=True):
     __tablename__ = "traces"
+    __table_args__ = {"extend_existing": True}
 
     id: Optional[int] = Field(default=None, primary_key=True)
     quota_id: str = Field(foreign_key="quotas.id", index=True)
@@ -72,6 +76,7 @@ class TraceLog(TimestampMixin, table=True):
 
 class SchedulerTask(TimestampMixin, table=True):
     __tablename__ = "scheduler_tasks"
+    __table_args__ = {"extend_existing": True}
 
     id: Optional[int] = Field(default=None, primary_key=True)
     job_id: str = Field(unique=True, index=True, max_length=100)

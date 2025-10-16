@@ -213,10 +213,11 @@ def LimitCallTask(
             quota_name=quota_name,
             description=description,
         )
-        _REGISTERED_CALL_LIMITERS[id] = {
-            "metadata": metadata,
-            "func": func,
-        }
+        
+        if id in _REGISTERED_TASKS:
+            logger.warning(
+                "⚠️ 函数限流器 ID 重复注册，将覆盖现有任务: %s", id
+            )
         
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -314,9 +315,16 @@ def LimitCallTask(
                     f"函数 {func.__name__} 限流超时，配额 {quota_name} 令牌不足"
                 )
         
-        # 附加元数据
+        # 附加元数据，便于调试与自省
         wrapper._task_metadata = metadata
         wrapper._is_call_limiter = True
+        
+        entry = {
+            "metadata": metadata,
+            "func": wrapper,
+        }
+        _REGISTERED_CALL_LIMITERS[id] = entry
+        _REGISTERED_TASKS[id] = entry
         return wrapper
     
     return decorator
@@ -334,4 +342,6 @@ def get_call_limiter_by_id(limiter_id: str) -> Optional[Dict[str, Any]]:
 
 def clear_registered_call_limiters() -> None:
     """清空函数调用限流器注册表（主要用于测试）"""
+    for limiter_id in list(_REGISTERED_CALL_LIMITERS.keys()):
+        _REGISTERED_TASKS.pop(limiter_id, None)
     _REGISTERED_CALL_LIMITERS.clear()
