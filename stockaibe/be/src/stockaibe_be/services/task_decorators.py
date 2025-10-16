@@ -7,8 +7,7 @@ import inspect
 import time
 from typing import Any, Callable, Dict, List, Optional
 
-from sqlalchemy.orm import Session
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from ..core.logging_config import get_logger
 
