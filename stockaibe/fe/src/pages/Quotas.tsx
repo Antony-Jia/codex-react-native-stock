@@ -30,7 +30,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import apiClient from '../api/client';
+import { apiClient } from '../api/client';
 import type { Quota, QuotaCreate, QuotaUpdate } from '../types/api';
 import dayjs from 'dayjs';
 
@@ -70,8 +70,9 @@ const Quotas: React.FC = () => {
     try {
       const data = await apiClient.getQuotas();
       setQuotas(data);
-    } catch (error: any) {
-      message.error(error.message || '加载配额失败');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : '加载配额失败';
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -106,8 +107,9 @@ const Quotas: React.FC = () => {
 
       setModalVisible(false);
       loadQuotas();
-    } catch (error: any) {
-      message.error(error.message || '操作失败');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : '操作失败';
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -118,8 +120,9 @@ const Quotas: React.FC = () => {
       await apiClient.toggleQuota(quotaId);
       message.success('状态已切换');
       loadQuotas();
-    } catch (error: any) {
-      message.error(error.message || '切换失败');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : '切换失败';
+      message.error(errorMessage);
     }
   };
 
