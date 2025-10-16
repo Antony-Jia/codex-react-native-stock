@@ -25,7 +25,7 @@ class User(TimestampMixin, table=True):
     __tablename__ = "users"
     __table_args__ = {"extend_existing": True}
 
-    id: Optional[int] = Field(default=None, primary_key=True, index=True)
+    id: Optional[int] = Field(default=None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     username: str = Field(max_length=50, unique=True, index=True)
     hashed_password: str = Field(max_length=255)
     full_name: Optional[str] = Field(default=None, max_length=100)
@@ -39,6 +39,7 @@ class Quota(TimestampMixin, table=True):
 
     id: str = Field(primary_key=True, max_length=100)
     domain: Optional[str] = Field(default=None, max_length=100)
+    name: Optional[str] = Field(default=None, max_length=100)
     endpoint: Optional[str] = Field(default=None, max_length=255)
     algo: str = Field(default="token_bucket", max_length=50)
     capacity: int = Field(default=60)
@@ -53,7 +54,7 @@ class Metric(SQLModel, table=True):
     __tablename__ = "metrics"
     __table_args__ = {"extend_existing": True}
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: Optional[int] = Field(default=None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     ts: dt.datetime = Field(index=True)
     quota_id: str = Field(foreign_key="quotas.id", index=True)
     ok: int = Field(default=0)
@@ -67,7 +68,7 @@ class TraceLog(TimestampMixin, table=True):
     __tablename__ = "traces"
     __table_args__ = {"extend_existing": True}
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: Optional[int] = Field(default=None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     quota_id: str = Field(foreign_key="quotas.id", index=True)
     status_code: int
     latency_ms: Optional[float] = Field(default=None)
@@ -78,7 +79,7 @@ class SchedulerTask(TimestampMixin, table=True):
     __tablename__ = "scheduler_tasks"
     __table_args__ = {"extend_existing": True}
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: Optional[int] = Field(default=None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     job_id: str = Field(unique=True, index=True, max_length=100)
     name: str = Field(max_length=100)
     task_type: str = Field(default="scheduler", max_length=20)  # "scheduler" or "limiter"

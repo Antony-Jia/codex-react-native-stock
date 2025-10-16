@@ -4,11 +4,19 @@
 """
 
 import datetime as dt
+import sys
+from pathlib import Path
 from sqlmodel import Session, select
 
-from src.stockaibe_be.services.task_decorators import SchedulerTask, LimitTask
-from src.stockaibe_be.models import Quota, Metric
-from src.stockaibe_be.core.logging_config import get_logger
+# 添加 src 目录到 Python 路径
+project_root = Path(__file__).parent.parent
+src_path = project_root / "src"
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
+
+from stockaibe_be.services.task_decorators import SchedulerTask, LimitTask
+from stockaibe_be.models import Quota, Metric
+from stockaibe_be.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 

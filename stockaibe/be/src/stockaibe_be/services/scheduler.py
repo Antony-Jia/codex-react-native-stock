@@ -168,11 +168,16 @@ def _execute_limiter_task(job_id: str, session: Session) -> None:
     metadata = task_info["metadata"]
     func = task_info["func"]
     
-    # 获取关联的配额
+    # 获取关联的配额（通过 name 字段匹配）
     quota = None
     if metadata.quota_name:
-        statement = select(Quota).where(Quota.id == metadata.quota_name)
+        statement = select(Quota).where(Quota.name == metadata.quota_name)
         quota = session.exec(statement).first()
+        if not quota:
+            logger.warning(
+                f"任务 {job_id} 关联的配额名称 '{metadata.quota_name}' 不存在，"
+                f"将按无限制执行"
+            )
     
     start_time = time.time()
     success = False

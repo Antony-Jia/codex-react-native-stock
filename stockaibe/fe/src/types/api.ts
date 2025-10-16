@@ -30,6 +30,7 @@ export interface Token {
 // Quota types
 export interface Quota {
   id: string;
+  name?: string;
   domain?: string;
   endpoint?: string;
   algo: 'token_bucket' | 'leaky_bucket';
@@ -45,6 +46,7 @@ export interface Quota {
 
 export interface QuotaCreate {
   id: string;
+  name?: string;
   domain?: string;
   endpoint?: string;
   algo?: string;
@@ -57,6 +59,7 @@ export interface QuotaCreate {
 }
 
 export interface QuotaUpdate {
+  name?: string;
   domain?: string;
   endpoint?: string;
   algo?: string;

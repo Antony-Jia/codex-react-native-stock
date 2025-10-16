@@ -111,10 +111,18 @@ const Quotas: React.FC = () => {
       width: 150,
     },
     {
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 150,
+      render: (name: string) => name || '-',
+    },
+    {
       title: '域名',
       dataIndex: 'domain',
       key: 'domain',
       width: 150,
+      render: (domain: string) => domain || '-',
     },
     {
       title: '端点',
@@ -154,6 +162,14 @@ const Quotas: React.FC = () => {
           {enabled ? '启用' : '禁用'}
         </Tag>
       ),
+    },
+    {
+      title: '备注',
+      dataIndex: 'notes',
+      key: 'notes',
+      width: 200,
+      ellipsis: true,
+      render: (notes: string) => notes || '-',
     },
     {
       title: '更新时间',
@@ -210,7 +226,7 @@ const Quotas: React.FC = () => {
           dataSource={quotas}
           rowKey="id"
           loading={loading}
-          scroll={{ x: 1400 }}
+          scroll={{ x: 1700 }}
           pagination={{ pageSize: 10 }}
         />
       </Card>
@@ -238,11 +254,20 @@ const Quotas: React.FC = () => {
             name="id"
             rules={[{ required: true, message: '请输入配额 ID' }]}
           >
-            <Input placeholder="例如: sina_quote" disabled={!!editingQuota} />
+            <Input placeholder="例如: external_api" disabled={!!editingQuota} />
+          </Form.Item>
+
+          <Form.Item
+            label="配额名称"
+            name="name"
+            rules={[{ required: true, message: '请输入配额名称' }]}
+            tooltip="用于任务装饰器中的 quota_name 参数匹配"
+          >
+            <Input placeholder="例如: external_api" />
           </Form.Item>
 
           <Form.Item label="域名" name="domain">
-            <Input placeholder="例如: finance.sina.com.cn" />
+            <Input placeholder="例如: finance.sina.com.cn（可选）" />
           </Form.Item>
 
           <Form.Item label="端点" name="endpoint">

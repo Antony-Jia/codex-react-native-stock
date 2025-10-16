@@ -85,6 +85,8 @@ def SchedulerTask(
             "func": func,
         }
         
+        logger.debug(f"✓ 注册调度任务: {id} ({name})")
+        
         # 保留原函数功能
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -140,6 +142,8 @@ def LimitTask(
             "metadata": metadata,
             "func": func,
         }
+        
+        logger.debug(f"✓ 注册限流任务: {id} ({name})")
         
         # 保留原函数功能
         @functools.wraps(func)
@@ -233,14 +237,14 @@ def LimitCallTask(
             from ..models import Quota, TraceLog
             from .limiter import limiter_service
             
-            # 获取配额
+            # 获取配额（通过 name 字段匹配）
             with Session(engine) as session:
-                statement = select(Quota).where(Quota.id == quota_name)
+                statement = select(Quota).where(Quota.name == quota_name)
                 quota = session.exec(statement).first()
                 
                 if not quota or not quota.enabled:
                     # 无配额或配额未启用，直接执行
-                    logger.debug(f"函数 {func.__name__} 无限流限制")
+                    logger.debug(f"函数 {func.__name__} 无限流限制（配额名称: {quota_name}）")
                     return func(*args, **kwargs)
                 
                 # 尝试获取令牌，带重试机制
@@ -325,6 +329,9 @@ def LimitCallTask(
         }
         _REGISTERED_CALL_LIMITERS[id] = entry
         _REGISTERED_TASKS[id] = entry
+        
+        logger.debug(f"✓ 注册函数限流器: {id} ({name})")
+        
         return wrapper
     
     return decorator

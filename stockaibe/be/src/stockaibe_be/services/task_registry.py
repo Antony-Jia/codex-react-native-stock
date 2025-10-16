@@ -14,6 +14,7 @@ from sqlmodel import Session, select
 from ..core.logging_config import get_logger
 from ..models import SchedulerTask, Quota
 from .task_decorators import get_registered_tasks, get_registered_call_limiters
+import stockaibe_be.services.task_decorators as task_decorators_module
 
 logger = get_logger(__name__)
 
@@ -43,9 +44,12 @@ def scan_task_modules(tasks_dir: str) -> None:
         module_name = py_file.stem
         try:
             # 动态导入模块
-            importlib.import_module(f"tasks.{module_name}")
+            logger.debug(f"正在导入模块: tasks.{module_name}")
+            module = importlib.import_module(f"tasks.{module_name}")
             imported_count += 1
             logger.info(f"✓ 已导入任务模块: {module_name}")
+            logger.debug(f"  模块路径: {module.__file__}")
+            logger.debug(f"  模块属性: {dir(module)}")
         except Exception as e:
             logger.error(f"✗ 导入任务模块失败 {module_name}: {e}", exc_info=True)
     
@@ -67,8 +71,25 @@ def sync_tasks_to_database(session: Session) -> dict:
     registered_tasks = get_registered_tasks()
     registered_call_limiters = get_registered_call_limiters()
     
+    # 调试：检查全局注册表
+    logger.debug(f"task_decorators 模块 ID: {id(task_decorators_module)}")
+    logger.debug(f"_REGISTERED_TASKS 内容: {list(task_decorators_module._REGISTERED_TASKS.keys())}")
+    logger.debug(f"_REGISTERED_CALL_LIMITERS 内容: {list(task_decorators_module._REGISTERED_CALL_LIMITERS.keys())}")
+    
+    logger.debug(f"get_registered_tasks() 返回: {len(registered_tasks)} 个任务")
+    logger.debug(f"get_registered_call_limiters() 返回: {len(registered_call_limiters)} 个限流器")
+    
     # 将 call_limiter 也加入任务列表（仅用于记录，不会被调度器执行）
     all_tasks = {**registered_tasks, **registered_call_limiters}
+    
+    logger.info(f"装饰器注册了 {len(all_tasks)} 个任务")
+    
+    if all_tasks:
+        logger.info("已注册的任务列表:")
+        for job_id in all_tasks.keys():
+            logger.info(f"  - {job_id}")
+    else:
+        logger.warning("⚠️ 没有发现任何已注册的任务！")
     
     stats = {
         "created": 0,
@@ -82,9 +103,22 @@ def sync_tasks_to_database(session: Session) -> dict:
     statement = select(SchedulerTask)
     db_tasks = {task.job_id: task for task in session.exec(statement).all()}
     
+    logger.info(f"数据库中存在 {len(db_tasks)} 个任务")
+    for task in db_tasks.values():
+        logger.info(f"{task.job_id}: {task.name}")
+    
     # 获取所有配额（用于验证 quota_name）
+    # 注意：使用 quota.name 作为字典键，因为任务的 quota_name 字段对应的是配额的 name
     quota_statement = select(Quota)
-    quotas = {quota.id: quota for quota in session.exec(quota_statement).all()}
+    all_quotas = session.exec(quota_statement).all()
+    
+    # 创建两个映射：name -> quota 和 id -> quota
+    quotas_by_name = {quota.name: quota for quota in all_quotas if quota.name}
+    quotas_by_id = {quota.id: quota for quota in all_quotas}
+    
+    logger.info(f"数据库中存在 {len(all_quotas)} 个配额")
+    for quota in all_quotas:
+        logger.info(f"  ID: {quota.id}, Name: {quota.name}")
     
     # 1. 同步装饰器注册的任务到数据库
     for job_id, task_info in all_tasks.items():
@@ -92,15 +126,20 @@ def sync_tasks_to_database(session: Session) -> dict:
         
         # 验证限流任务和函数调用限流器的 quota_name
         if metadata.task_type in ("limiter", "call_limiter") and metadata.quota_name:
-            if metadata.quota_name not in quotas:
+            if metadata.quota_name not in quotas_by_name:
                 logger.warning(
-                    f"⚠️ 任务 {job_id} 的配额 '{metadata.quota_name}' 不存在，"
+                    f"⚠️ 任务 {job_id} 的配额名称 '{metadata.quota_name}' 不存在，"
                     f"将按无限制处理"
                 )
                 stats["quota_missing"].append({
                     "job_id": job_id,
                     "quota_name": metadata.quota_name,
                 })
+            else:
+                quota = quotas_by_name[metadata.quota_name]
+                logger.debug(
+                    f"✓ 任务 {job_id} 关联配额: {quota.name} (ID: {quota.id})"
+                )
         
         if job_id in db_tasks:
             # 更新现有任务（保留 is_active 和 last_run_at）
