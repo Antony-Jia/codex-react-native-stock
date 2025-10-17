@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Optional
 
-from sqlalchemy import Text, text
+from sqlalchemy import Text, UniqueConstraint, text
 from sqlmodel import Field, SQLModel, Column
 
 
@@ -93,3 +93,81 @@ class SchedulerTask(TimestampMixin, table=True):
     is_active: bool = Field(default=True)
     last_run_at: Optional[dt.datetime] = Field(default=None)
     description: Optional[str] = Field(default=None, sa_column=Column(Text))
+
+
+class ShanghaiAStock(TimestampMixin, table=True):
+    """沪A股基础档案，维护需要抓取的股票列表。"""
+
+    __tablename__ = "shanghai_a_stocks"
+    __table_args__ = {"extend_existing": True}
+
+    code: str = Field(primary_key=True, max_length=12, description="股票代码（不含市场前缀）")
+    name: str = Field(max_length=100, index=True, description="股票名称")
+    short_name: Optional[str] = Field(default=None, max_length=100, description="简称或拼音")
+    industry: Optional[str] = Field(default=None, max_length=100, description="所属行业")
+    exchange: str = Field(default="SH", max_length=10, description="交易所代码")
+    is_active: bool = Field(default=True, description="是否参与批量采集")
+    listing_date: Optional[dt.date] = Field(default=None, description="上市日期", index=True)
+
+
+class ShanghaiAStockInfo(TimestampMixin, table=True):
+    """沪A股个股信息（来自 stock_individual_info_em），按键值对存储。"""
+
+    __tablename__ = "shanghai_a_stock_info"
+    __table_args__ = (
+        UniqueConstraint("stock_code", "info_key", name="uq_shanghai_a_stock_info"),
+        {"extend_existing": True},
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    stock_code: str = Field(foreign_key="shanghai_a_stocks.code", max_length=12, index=True)
+    info_key: str = Field(max_length=100, index=True, description="信息项名称")
+    info_value: Optional[str] = Field(default=None, sa_column=Column(Text), description="信息项值")
+
+
+class ShanghaiAMarketFundFlow(TimestampMixin, table=True):
+    """沪深市场整体资金流向概览。"""
+
+    __tablename__ = "shanghai_a_market_fund_flow"
+    __table_args__ = (
+        UniqueConstraint("trade_date", name="uq_shanghai_a_market_fund_flow"),
+        {"extend_existing": True},
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    trade_date: dt.date = Field(index=True, description="统计日期")
+    shanghai_close: Optional[float] = Field(default=None, description="上证指数收盘价")
+    shanghai_pct_change: Optional[float] = Field(default=None, description="上证指数涨跌幅（%）")
+    shenzhen_close: Optional[float] = Field(default=None, description="深证指数收盘价")
+    shenzhen_pct_change: Optional[float] = Field(default=None, description="深证指数涨跌幅（%）")
+    main_net_inflow: Optional[float] = Field(default=None, description="主力净流入（元）")
+    main_net_ratio: Optional[float] = Field(default=None, description="主力净占比（%）")
+    super_large_net_inflow: Optional[float] = Field(default=None, description="超大单净流入（元）")
+    super_large_net_ratio: Optional[float] = Field(default=None, description="超大单净占比（%）")
+    large_net_inflow: Optional[float] = Field(default=None, description="大单净流入（元）")
+    large_net_ratio: Optional[float] = Field(default=None, description="大单净占比（%）")
+    medium_net_inflow: Optional[float] = Field(default=None, description="中单净流入（元）")
+    medium_net_ratio: Optional[float] = Field(default=None, description="中单净占比（%）")
+    small_net_inflow: Optional[float] = Field(default=None, description="小单净流入（元）")
+    small_net_ratio: Optional[float] = Field(default=None, description="小单净占比（%）")
+
+
+class ShanghaiAStockFundFlow(TimestampMixin, table=True):
+    """沪A股个股资金流向数据。"""
+
+    __tablename__ = "shanghai_a_stock_fund_flow"
+    __table_args__ = (
+        UniqueConstraint("stock_code", "trade_date", name="uq_shanghai_a_stock_fund_flow"),
+        {"extend_existing": True},
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    stock_code: str = Field(foreign_key="shanghai_a_stocks.code", max_length=12, index=True)
+    trade_date: dt.date = Field(index=True, description="统计日期")
+    latest_price: Optional[float] = Field(default=None, description="最新价")
+    pct_change: Optional[float] = Field(default=None, description="涨跌幅（%）")
+    turnover_rate: Optional[float] = Field(default=None, description="换手率（%）")
+    inflow: Optional[float] = Field(default=None, description="流入资金（元）")
+    outflow: Optional[float] = Field(default=None, description="流出资金（元）")
+    net_inflow: Optional[float] = Field(default=None, description="净流入资金（元）")
+    amount: Optional[float] = Field(default=None, description="成交额（元）")

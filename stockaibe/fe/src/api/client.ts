@@ -18,6 +18,14 @@ import type {
   Task,
   TaskCreate,
   TaskTrigger,
+  ShanghaiAStock,
+  ShanghaiAStockCreate,
+  ShanghaiAStockUpdate,
+  ShanghaiAMarketFundFlow,
+  ShanghaiAStockFundFlow,
+  ShanghaiAManualUpdateRequest,
+  ShanghaiAManualUpdateResponse,
+  ShanghaiAStockInfo,
 } from '../types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
@@ -177,6 +185,54 @@ class ApiClient {
 
   async deleteTask(jobId: string): Promise<{ message: string }> {
     const response = await this.client.delete<{ message: string }>(`/tasks/${jobId}`);
+    return response.data;
+  }
+
+  // Shanghai A-share API
+  async getShanghaiAStocks(params?: { is_active?: boolean; keyword?: string }): Promise<ShanghaiAStock[]> {
+    const response = await this.client.get<ShanghaiAStock[]>('/shanghai-a/stocks', { params });
+    return response.data;
+  }
+
+  async createShanghaiAStock(data: ShanghaiAStockCreate): Promise<ShanghaiAStock> {
+    const response = await this.client.post<ShanghaiAStock>('/shanghai-a/stocks', data);
+    return response.data;
+  }
+
+  async updateShanghaiAStock(code: string, data: ShanghaiAStockUpdate): Promise<ShanghaiAStock> {
+    const response = await this.client.put<ShanghaiAStock>(`/shanghai-a/stocks/${code}`, data);
+    return response.data;
+  }
+
+  async deleteShanghaiAStock(code: string): Promise<void> {
+    await this.client.delete(`/shanghai-a/stocks/${code}`);
+  }
+
+  async getShanghaiAMarketFundFlow(limit: number = 30): Promise<ShanghaiAMarketFundFlow[]> {
+    const response = await this.client.get<ShanghaiAMarketFundFlow[]>('/shanghai-a/market-fund-flow', {
+      params: { limit },
+    });
+    return response.data;
+  }
+
+  async getShanghaiAStockInfo(code: string): Promise<ShanghaiAStockInfo[]> {
+    const response = await this.client.get<ShanghaiAStockInfo[]>(`/shanghai-a/stocks/${code}/info`);
+    return response.data;
+  }
+
+  async getShanghaiAStockFundFlow(params?: {
+    trade_date?: string;
+    stock_code?: string;
+    limit?: number;
+  }): Promise<ShanghaiAStockFundFlow[]> {
+    const response = await this.client.get<ShanghaiAStockFundFlow[]>('/shanghai-a/stock-fund-flow', { params });
+    return response.data;
+  }
+
+  async manualUpdateShanghaiA(
+    data: ShanghaiAManualUpdateRequest
+  ): Promise<ShanghaiAManualUpdateResponse> {
+    const response = await this.client.post<ShanghaiAManualUpdateResponse>('/shanghai-a/manual-update', data);
     return response.data;
   }
 

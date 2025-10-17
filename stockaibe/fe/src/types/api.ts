@@ -169,3 +169,84 @@ export interface SSEErrorEvent {
 }
 
 export type SSEEvent = SSETraceEvent | SSETokensEvent | SSEErrorEvent;
+
+// Shanghai A-share types
+export interface ShanghaiAStock {
+  code: string;
+  name: string;
+  short_name?: string;
+  industry?: string;
+  exchange: string;
+  is_active: boolean;
+  listing_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShanghaiAStockCreate {
+  code: string;
+  name: string;
+  short_name?: string;
+  industry?: string;
+  exchange?: string;
+  is_active?: boolean;
+  listing_date?: string;
+}
+
+export interface ShanghaiAStockUpdate {
+  name?: string;
+  short_name?: string;
+  industry?: string;
+  exchange?: string;
+  is_active?: boolean;
+  listing_date?: string;
+}
+
+export interface ShanghaiAMarketFundFlow {
+  trade_date: string;
+  shanghai_close?: number;
+  shanghai_pct_change?: number;
+  shenzhen_close?: number;
+  shenzhen_pct_change?: number;
+  main_net_inflow?: number;
+  main_net_ratio?: number;
+  super_large_net_inflow?: number;
+  super_large_net_ratio?: number;
+  large_net_inflow?: number;
+  large_net_ratio?: number;
+  medium_net_inflow?: number;
+  medium_net_ratio?: number;
+  small_net_inflow?: number;
+  small_net_ratio?: number;
+}
+
+export interface ShanghaiAStockFundFlow {
+  stock_code: string;
+  stock_name?: string;
+  trade_date: string;
+  latest_price?: number;
+  pct_change?: number;
+  turnover_rate?: number;
+  inflow?: number;
+  outflow?: number;
+  net_inflow?: number;
+  amount?: number;
+}
+
+export interface ShanghaiAManualUpdateRequest {
+  trade_date?: string;
+  stock_codes?: string[];
+}
+
+export interface ShanghaiAManualUpdateResponse {
+  message: string;
+  summary: Record<string, number>;
+}
+
+export interface ShanghaiAStockInfo {
+  stock_code: string;
+  info_key: string;
+  info_value?: string;
+  created_at: string;
+  updated_at: string;
+}

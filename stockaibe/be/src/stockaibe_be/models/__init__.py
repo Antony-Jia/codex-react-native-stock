@@ -1,6 +1,17 @@
 """Database models."""
 
-from .models import Metric, Quota, SchedulerTask, TimestampMixin, TraceLog, User
+from .models import (
+    Metric,
+    Quota,
+    SchedulerTask,
+    ShanghaiAMarketFundFlow,
+    ShanghaiAStock,
+    ShanghaiAStockInfo,
+    ShanghaiAStockFundFlow,
+    TimestampMixin,
+    TraceLog,
+    User,
+)
 
 __all__ = [
     "TimestampMixin",
@@ -9,4 +20,8 @@ __all__ = [
     "Metric",
     "TraceLog",
     "SchedulerTask",
+    "ShanghaiAStock",
+    "ShanghaiAStockInfo",
+    "ShanghaiAMarketFundFlow",
+    "ShanghaiAStockFundFlow",
 ]

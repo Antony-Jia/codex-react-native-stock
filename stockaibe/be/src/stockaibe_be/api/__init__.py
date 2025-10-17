@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from . import auth, limiter, metrics, quotas, tasks, traces, events
+from . import auth, events, limiter, metrics, quotas, shanghai_a, tasks, traces
 
 api_router = APIRouter()
 
@@ -14,5 +14,6 @@ api_router.include_router(metrics.router, prefix="/metrics", tags=["metrics"])
 api_router.include_router(traces.router, prefix="/traces", tags=["traces"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(events.router, prefix="/events", tags=["events"])
+api_router.include_router(shanghai_a.router, prefix="/shanghai-a", tags=["shanghai-a"])
 
 __all__ = ["api_router"]

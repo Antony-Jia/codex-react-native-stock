@@ -24,8 +24,8 @@ import akshare as ak
 #             序号    股票代码  股票简称     最新价      涨跌幅     换手率   流入资金   流出资金         净额     成交额
 # 0        1  301099  雅创电子   49.34   19.99%  13.23%  2.76亿  2.85亿   -961.51万   5.61亿
 
-# stock_fund_flow_individual_df = ak.stock_fund_flow_individual(symbol="即时")
-# print(stock_fund_flow_individual_df)
+stock_fund_flow_individual_df = ak.stock_fund_flow_individual(symbol="即时")
+print(stock_fund_flow_individual_df)
 
 # -----------------------------------------------------------------------------------------------------
 # 接口: stock_xjll_em

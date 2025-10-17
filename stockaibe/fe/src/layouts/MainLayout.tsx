@@ -7,6 +7,7 @@ import {
   SettingOutlined,
   UserOutlined,
   LogoutOutlined,
+  StockOutlined,
 } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
@@ -28,6 +29,9 @@ const MainLayout = () => {
     }
     if (location.pathname.startsWith('/tasks')) {
       return 'tasks';
+    }
+    if (location.pathname.startsWith('/shanghai-a')) {
+      return 'shanghai-a';
     }
     if (location.pathname.startsWith('/settings')) {
       return 'settings';
@@ -78,6 +82,9 @@ const MainLayout = () => {
           </Menu.Item>
           <Menu.Item key="tasks" icon={<ClockCircleOutlined />}>
             <Link to="/tasks">任务调度</Link>
+          </Menu.Item>
+          <Menu.Item key="shanghai-a" icon={<StockOutlined />}>
+            <Link to="/shanghai-a">沪A股数据</Link>
           </Menu.Item>
           <Menu.Item key="settings" icon={<SettingOutlined />}>
             <Link to="/settings">系统设置</Link>

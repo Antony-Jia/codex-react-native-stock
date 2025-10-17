@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Optional
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -152,3 +152,86 @@ class FuncStatsRead(BaseModel):
     limited_calls: int  # status_code = 429
     avg_latency_ms: Optional[float]
     last_call_at: Optional[dt.datetime]
+
+
+class ShanghaiAStockBase(BaseModel):
+    code: str
+    name: str
+    short_name: Optional[str] = None
+    industry: Optional[str] = None
+    exchange: str = "SH"
+    is_active: bool = True
+    listing_date: Optional[dt.date] = None
+
+
+class ShanghaiAStockCreate(ShanghaiAStockBase):
+    pass
+
+
+class ShanghaiAStockUpdate(BaseModel):
+    name: Optional[str] = None
+    short_name: Optional[str] = None
+    industry: Optional[str] = None
+    exchange: Optional[str] = None
+    is_active: Optional[bool] = None
+    listing_date: Optional[dt.date] = None
+
+
+class ShanghaiAStockRead(ShanghaiAStockBase):
+    created_at: dt.datetime
+    updated_at: dt.datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ShanghaiAStockInfoRead(BaseModel):
+    stock_code: str
+    info_key: str
+    info_value: Optional[str] = None
+    created_at: dt.datetime
+    updated_at: dt.datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ShanghaiAMarketFundFlowRead(BaseModel):
+    trade_date: dt.date
+    shanghai_close: Optional[float] = None
+    shanghai_pct_change: Optional[float] = None
+    shenzhen_close: Optional[float] = None
+    shenzhen_pct_change: Optional[float] = None
+    main_net_inflow: Optional[float] = None
+    main_net_ratio: Optional[float] = None
+    super_large_net_inflow: Optional[float] = None
+    super_large_net_ratio: Optional[float] = None
+    large_net_inflow: Optional[float] = None
+    large_net_ratio: Optional[float] = None
+    medium_net_inflow: Optional[float] = None
+    medium_net_ratio: Optional[float] = None
+    small_net_inflow: Optional[float] = None
+    small_net_ratio: Optional[float] = None
+
+    model_config = {"from_attributes": True}
+
+
+class ShanghaiAStockFundFlowRead(BaseModel):
+    stock_code: str
+    stock_name: Optional[str] = None
+    trade_date: dt.date
+    latest_price: Optional[float] = None
+    pct_change: Optional[float] = None
+    turnover_rate: Optional[float] = None
+    inflow: Optional[float] = None
+    outflow: Optional[float] = None
+    net_inflow: Optional[float] = None
+    amount: Optional[float] = None
+
+
+class ShanghaiAManualUpdateRequest(BaseModel):
+    trade_date: Optional[dt.date] = None
+    stock_codes: Optional[List[str]] = None
+
+
+class ShanghaiAManualUpdateResponse(BaseModel):
+    message: str
+    summary: Dict[str, int]

@@ -21,6 +21,15 @@ from .schemas import (
     UserCreate,
     UserLogin,
     UserRead,
+    ShanghaiAStockBase,
+    ShanghaiAStockCreate,
+    ShanghaiAStockUpdate,
+    ShanghaiAStockRead,
+    ShanghaiAStockInfoRead,
+    ShanghaiAMarketFundFlowRead,
+    ShanghaiAStockFundFlowRead,
+    ShanghaiAManualUpdateRequest,
+    ShanghaiAManualUpdateResponse,
 )
 
 __all__ = [
@@ -44,4 +53,13 @@ __all__ = [
     "TaskCreate",
     "TaskRead",
     "TaskTriggerRequest",
+    "ShanghaiAStockBase",
+    "ShanghaiAStockCreate",
+    "ShanghaiAStockUpdate",
+    "ShanghaiAStockRead",
+    "ShanghaiAStockInfoRead",
+    "ShanghaiAMarketFundFlowRead",
+    "ShanghaiAStockFundFlowRead",
+    "ShanghaiAManualUpdateRequest",
+    "ShanghaiAManualUpdateResponse",
 ]
