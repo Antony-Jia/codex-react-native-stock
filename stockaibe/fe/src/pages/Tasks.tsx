@@ -23,7 +23,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../api/client';
 import type { Task } from '../types/api';
-import dayjs from 'dayjs';
+import { formatLocalTime } from '../utils/dayjs';
 
 const { Title } = Typography;
 
@@ -119,7 +119,7 @@ const Tasks: React.FC = () => {
       dataIndex: 'next_run',
       key: 'next_run',
       width: 180,
-      render: (time?: string) => (time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-'),
+      render: (time?: string) => (time ? formatLocalTime(time) : '-'),
     },
     {
       title: '状态',

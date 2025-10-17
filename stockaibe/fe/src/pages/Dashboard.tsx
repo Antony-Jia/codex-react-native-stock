@@ -13,7 +13,7 @@ import {
 import { Line, LineConfig, Gauge, GaugeConfig } from '@ant-design/plots';
 import apiClient from '../api/client';
 import type { MetricsCurrent, MetricSeriesPoint, Quota } from '../types/api';
-import dayjs from 'dayjs';
+import { formatLocalTime } from '../utils/dayjs';
 
 const { Title } = Typography;
 
@@ -60,9 +60,9 @@ const Dashboard: React.FC = () => {
 
   // Prepare chart data
   const lineData = seriesData.flatMap(item => [
-    { time: dayjs(item.ts).format('HH:mm:ss'), type: '成功', value: item.ok },
-    { time: dayjs(item.ts).format('HH:mm:ss'), type: '错误', value: item.err },
-    { time: dayjs(item.ts).format('HH:mm:ss'), type: '429限流', value: item.r429 },
+    { time: formatLocalTime(item.ts, 'HH:mm:ss'), type: '成功', value: item.ok },
+    { time: formatLocalTime(item.ts, 'HH:mm:ss'), type: '错误', value: item.err },
+    { time: formatLocalTime(item.ts, 'HH:mm:ss'), type: '429限流', value: item.r429 },
   ]);
 
   const lineConfig: LineConfig = {
@@ -72,7 +72,13 @@ const Dashboard: React.FC = () => {
     seriesField: 'type',
     smooth: true,
     animation: { appear: { animation: 'path-in', duration: 1000 } },
-    color: ['#52c41a', '#ff4d4f', '#faad14'], // 成功-绿色, 错误-红色, 限流-橙色
+    color: (datum) => (datum.type === '成功' ? '#52c41a' : datum.type === '错误' ? '#ff4d4f' : '#faad14'), // 成功-绿色, 错误-红色, 限流-橙色
+    // theme: {
+    //   colors10: ['#52c41a', '#ff4d4f', '#faad14', '#1890ff', '#722ed1', '#13c2c2', '#52c41a', '#faad14', '#f5222d', '#fa8c16'],
+    // },
+    theme: {
+      colors10: ['#52c41a', '#ff4d4f', '#faad14', '#1890ff', '#722ed1', '#13c2c2', '#52c41a', '#faad14', '#f5222d', '#fa8c16'],
+    },
     legend: {
       position: 'top-right',
     },

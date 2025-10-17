@@ -314,52 +314,70 @@ def init_jobs(tasks_dir: str = None) -> None:
         tasks_dir: 任务模块目录，如果提供则扫描并加载装饰器任务
     """
     logger.info("初始化定时任务...")
-    if not scheduler.running:
-        scheduler.start()
-        logger.info("调度器已启动")
     
-    # 如果提供了任务目录，初始化装饰器任务系统
-    if tasks_dir:
-        with Session(engine) as session:
-            initialize_task_system(session, tasks_dir)
-        load_decorator_tasks()
-    
-    # 内置系统任务
-    # Snapshot metrics every minute
-    if not scheduler.get_job("snapshot_metrics"):
-        scheduler.add_job(
-            lambda: _with_session(snapshot_metrics),
-            trigger="interval",
-            seconds=60,
-            id="snapshot_metrics",
-            name="Snapshot Metrics",
-            replace_existing=True,
-        )
-    
-    # Health check every 3 minutes
-    if not scheduler.get_job("health_check"):
-        scheduler.add_job(
-            lambda: _with_session(health_check_job),
-            trigger="interval",
-            minutes=3,
-            id="health_check",
-            name="Health Check",
-            replace_existing=True,
-        )
-    
-    # Window reset daily at 3 AM
-    if not scheduler.get_job("window_reset"):
-        scheduler.add_job(
-            lambda: _with_session(window_reset_job),
-            trigger="cron",
-            hour=3,
-            minute=0,
-            id="window_reset",
-            name="Window Reset",
-            replace_existing=True,
-        )
-    
-    logger.info("所有定时任务已初始化完成")
+    try:
+        if not scheduler.running:
+            logger.info("正在启动调度器...")
+            scheduler.start()
+            logger.info("✓ 调度器已启动")
+        else:
+            logger.info("调度器已在运行中")
+        
+        # 如果提供了任务目录，初始化装饰器任务系统
+        if tasks_dir:
+            logger.info(f"开始加载任务目录: {tasks_dir}")
+            with Session(engine) as session:
+                initialize_task_system(session, tasks_dir)
+            logger.info("✓ 任务系统初始化完成")
+            
+            logger.info("开始加载装饰器任务...")
+            load_decorator_tasks()
+            logger.info("✓ 装饰器任务加载完成")
+        
+        # 内置系统任务
+        logger.info("添加内置系统任务...")
+        
+        # Snapshot metrics every minute
+        if not scheduler.get_job("snapshot_metrics"):
+            scheduler.add_job(
+                lambda: _with_session(snapshot_metrics),
+                trigger="interval",
+                seconds=60,
+                id="snapshot_metrics",
+                name="Snapshot Metrics",
+                replace_existing=True,
+            )
+            logger.info("✓ 已添加任务: Snapshot Metrics")
+        
+        # Health check every 3 minutes
+        if not scheduler.get_job("health_check"):
+            scheduler.add_job(
+                lambda: _with_session(health_check_job),
+                trigger="interval",
+                minutes=3,
+                id="health_check",
+                name="Health Check",
+                replace_existing=True,
+            )
+            logger.info("✓ 已添加任务: Health Check")
+        
+        # Window reset daily at 3 AM
+        if not scheduler.get_job("window_reset"):
+            scheduler.add_job(
+                lambda: _with_session(window_reset_job),
+                trigger="cron",
+                hour=3,
+                minute=0,
+                id="window_reset",
+                name="Window Reset",
+                replace_existing=True,
+            )
+            logger.info("✓ 已添加任务: Window Reset")
+        
+        logger.info("✓ 所有定时任务已初始化完成")
+    except Exception as e:
+        logger.error(f"✗ 初始化定时任务失败: {e}", exc_info=True)
+        raise
 
 
 def register_cron_job(job_id: str, cron: str, func: Callable[[], Any]) -> None:

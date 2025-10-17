@@ -9,7 +9,7 @@ import { ReloadOutlined, DeleteOutlined, ClearOutlined, BarChartOutlined, Unorde
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../api/client';
 import type { Trace, FuncStats, MetricsCurrent } from '../types/api';
-import dayjs from 'dayjs';
+import { formatLocalTime } from '../utils/dayjs';
 import { Column } from '@ant-design/plots';
 
 const { Title } = Typography;
@@ -174,7 +174,7 @@ const Traces: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 180,
-      render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm:ss'),
+      render: (time: string) => formatLocalTime(time),
     },
   ];
 
@@ -247,7 +247,7 @@ const Traces: React.FC = () => {
       dataIndex: 'last_call_at',
       key: 'last_call_at',
       width: 180,
-      render: (time?: string) => time ? dayjs(time).format('YYYY-MM-DD HH:mm:ss') : '-',
+      render: (time?: string) => time ? formatLocalTime(time) : '-',
     },
   ];
 
@@ -319,7 +319,7 @@ const Traces: React.FC = () => {
                       seriesField="type"
                       isGroup={true}
                       columnStyle={{ radius: [4, 4, 0, 0] }}
-                      color={['#52c41a', '#ff4d4f', '#faad14']}
+                      color={(datum) => (datum.type === '成功' ? '#52c41a' : datum.type === '失败' ? '#ff4d4f' : '#faad14')}
                       legend={{ 
                         position: 'top-right',
                       }}

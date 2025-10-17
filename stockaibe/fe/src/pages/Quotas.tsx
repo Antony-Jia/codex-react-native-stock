@@ -32,7 +32,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { apiClient } from '../api/client';
 import type { Quota, QuotaCreate, QuotaUpdate } from '../types/api';
-import dayjs from 'dayjs';
+import { formatLocalTime } from '../utils/dayjs';
 
 const { Title } = Typography;
 
@@ -223,7 +223,7 @@ const Quotas: React.FC = () => {
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 180,
-      render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm:ss'),
+      render: (time: string) => formatLocalTime(time),
     },
     {
       title: '操作',
