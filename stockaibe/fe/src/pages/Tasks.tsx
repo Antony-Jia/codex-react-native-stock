@@ -12,6 +12,7 @@ import {
   Tag,
   Popconfirm,
   Typography,
+  Tooltip,
 } from 'antd';
 import {
   PlayCircleOutlined,
@@ -89,6 +90,29 @@ const Tasks: React.FC = () => {
       key: 'cron',
       width: 150,
       render: (cron?: string) => cron || '-',
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      width: 250,
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (description?: string) => {
+        if (!description) return '-';
+        const maxLength = 50;
+        const isLong = description.length > maxLength;
+        const displayText = isLong ? `${description.substring(0, maxLength)}...` : description;
+        
+        return isLong ? (
+          <Tooltip title={description} placement="topLeft">
+            <span style={{ cursor: 'pointer' }}>{displayText}</span>
+          </Tooltip>
+        ) : (
+          <span>{displayText}</span>
+        );
+      },
     },
     {
       title: '下次运行',

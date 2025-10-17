@@ -112,6 +112,7 @@ export interface Task {
   cron?: string;
   next_run?: string;
   is_active: boolean;
+  description?: string;
 }
 
 export interface TaskCreate {

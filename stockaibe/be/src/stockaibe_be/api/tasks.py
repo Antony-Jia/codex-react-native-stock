@@ -50,6 +50,7 @@ def list_tasks(db: Session = Depends(get_db), _: User = Depends(get_current_user
                 cron=task.cron,
                 next_run=job.next_run_time if job else None,
                 is_active=task.is_active,
+                description=task.description,
             )
         )
     return results
@@ -79,6 +80,7 @@ def create_task(
         cron=task.cron,
         next_run=scheduler.get_job(job_id).next_run_time,
         is_active=task.is_active,
+        description=task.description,
     )
 
 

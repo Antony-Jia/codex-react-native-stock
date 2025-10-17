@@ -132,6 +132,7 @@ class TaskRead(BaseModel):
     cron: Optional[str]
     next_run: Optional[dt.datetime]
     is_active: bool
+    description: Optional[str]
 
 
 class TaskTriggerRequest(BaseModel):
