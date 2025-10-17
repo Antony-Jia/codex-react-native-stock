@@ -245,6 +245,32 @@ import akshare as ak
 # 目标地址: http://quote.eastmoney.com/center/gridlist.html#sh_a_board
 # 描述: 东方财富网-沪 A 股-实时行情数据
 # 限量: 单次返回所有沪 A 股上市公司的实时行情数据
+# 返回类型
+# 名称	类型	描述
+# 序号	int64	-
+# 代码	object	-
+# 名称	object	-
+# 最新价	float64	-
+# 涨跌幅	float64	注意单位: %
+# 涨跌额	float64	-
+# 成交量	float64	注意单位: 手
+# 成交额	float64	注意单位: 元
+# 振幅	float64	注意单位: %
+# 最高	float64	-
+# 最低	float64	-
+# 今开	float64	-
+# 昨收	float64	-
+# 量比	float64	-
+# 换手率	float64	注意单位: %
+# 市盈率-动态	float64	-
+# 市净率	float64	-
+# 总市值	float64	注意单位: 元
+# 流通市值	float64	注意单位: 元
+# 涨速	float64	-
+# 5分钟涨跌	float64	注意单位: %
+# 60日涨跌幅	float64	注意单位: %
+# 年初至今涨跌幅	float64	注意单位: %
+# 接口示例
 # example:
 # 序号      代码     名称    最新价    涨跌幅   涨跌额        成交量           成交额     振幅     最高     最低     今开     昨收    量比    换手率  市盈率-动态   市净率           总市
 # 值          流通市值   涨速  5分钟涨跌  60日涨跌幅  年初至今涨跌幅
@@ -253,11 +279,37 @@ import akshare as ak
 # print(stock_sh_a_spot_em_df)
 
 
+
 # -----------------------------------------------------------------------------------------------------
 # 接口: stock_kc_a_spot_em
 # 目标地址: http://quote.eastmoney.com/center/gridlist.html#kcb_board
 # 描述: 东方财富网-科创板-实时行情
 # 限量: 单次返回所有科创板的实时行情数据
+# 返回类型
+# 名称	类型	描述
+# 序号	int64	-
+# 代码	object	-
+# 名称	object	-
+# 最新价	float64	-
+# 涨跌幅	float64	注意单位: %
+# 涨跌额	float64	-
+# 成交量	float64	注意单位: 手
+# 成交额	float64	注意单位: 元
+# 振幅	float64	注意单位: %
+# 最高	float64	-
+# 最低	float64	-
+# 今开	float64	-
+# 昨收	float64	-
+# 量比	float64	-
+# 换手率	float64	注意单位: %
+# 市盈率-动态	float64	-
+# 市净率	float64	-
+# 总市值	float64	注意单位: 元
+# 流通市值	float64	注意单位: 元
+# 涨速	float64	-
+# 5分钟涨跌	float64	注意单位: %
+# 60日涨跌幅	float64	注意单位: %
+# 年初至今涨跌幅	float64	注意单位: %
 
 # stock_kc_a_spot_em_df = ak.stock_kc_a_spot_em()
 # print(stock_kc_a_spot_em_df)
@@ -281,6 +333,21 @@ import akshare as ak
 # end_date	str	end_date='20210616'; 结束查询的日期
 # adjust	str	默认返回不复权的数据; qfq: 返回前复权后的数据; hfq: 返回后复权后的数据
 # timeout	float	timeout=None; 默认不设置超时参数
+
+
+# 名称	类型	描述
+# 日期	object	交易日
+# 股票代码	object	不带市场标识的股票代码
+# 开盘	float64	开盘价
+# 收盘	float64	收盘价
+# 最高	float64	最高价
+# 最低	float64	最低价
+# 成交量	int64	注意单位: 手
+# 成交额	float64	注意单位: 元
+# 振幅	float64	注意单位: %
+# 涨跌幅	float64	注意单位: %
+# 涨跌额	float64	注意单位: 元
+# 换手率	float64	注意单位: %
 
 # stock_zh_a_hist_df = ak.stock_zh_a_hist(symbol="000001", period="daily", start_date="20170301", end_date='20240528', adjust="")
 # print(stock_zh_a_hist_df)
