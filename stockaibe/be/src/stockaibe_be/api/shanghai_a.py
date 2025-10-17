@@ -208,6 +208,22 @@ def get_shanghai_a_stock_info(
     return list(db.exec(statement).all())
 
 
+@router.post("/stocks/{code}/sync", response_model=ShanghaiAStockRead)
+def sync_shanghai_a_stock_info(
+    code: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_active_superuser),
+):
+    """Synchronize stock info for an existing Shanghai A stock."""
+    stock = db.get(ShanghaiAStock, code)
+    if not stock:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stock not found")
+
+    _refresh_stock_info(db, code)
+    db.refresh(stock)
+    return stock
+
+
 # ---------------------------------------------------------------------------
 # Fund flow views
 # ---------------------------------------------------------------------------

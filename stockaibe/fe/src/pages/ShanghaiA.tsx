@@ -55,6 +55,7 @@ const ShanghaiA: React.FC = () => {
   const [marketFundFlow, setMarketFundFlow] = useState<ShanghaiAMarketFundFlow[]>([]);
   const [stockFundFlow, setStockFundFlow] = useState<ShanghaiAStockFundFlow[]>([]);
 
+  const [syncingCodes, setSyncingCodes] = useState<string[]>([]);
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailStock, setDetailStock] = useState<ShanghaiAStock | null>(null);
@@ -150,6 +151,35 @@ const ShanghaiA: React.FC = () => {
     setDetailTab('basic');
   };
 
+  const handleSyncStock = async (stock: ShanghaiAStock) => {
+    if (syncingCodes.includes(stock.code)) {
+      return;
+    }
+    setSyncingCodes((prev) => [...prev, stock.code]);
+    try {
+      const updated = await apiClient.syncShanghaiAStock(stock.code);
+      setStocks((prev) =>
+        prev.map((item) => (item.code === updated.code ? updated : item))
+      );
+      if (detailVisible && detailStock?.code === stock.code) {
+        setDetailStock(updated);
+        setDetailLoading(true);
+        try {
+          const info = await apiClient.getShanghaiAStockInfo(stock.code);
+          setDetailInfo(info);
+        } finally {
+          setDetailLoading(false);
+        }
+      }
+      message.success(`已同步 ${updated.name} 的股票信息`);
+    } catch (error) {
+      console.error('Failed to sync stock info:', error);
+      message.error('同步股票信息失败');
+    } finally {
+      setSyncingCodes((prev) => prev.filter((code) => code !== stock.code));
+    }
+  };
+
   const handleOpenCreateModal = () => {
     setEditingStock(null);
     stockForm.resetFields();
@@ -238,17 +268,27 @@ const ShanghaiA: React.FC = () => {
       {
         title: '操作',
         key: 'actions',
-        width: 120,
-        render: (_, record) => (
-          <Space>
-            <Button size="small" onClick={() => handleViewDetails(record)}>
-              查看详细
-            </Button>
-            <Button size="small" onClick={() => handleEditStock(record)}>
-              编辑
-            </Button>
-          </Space>
-        ),
+        width: 200,
+        render: (_, record) => {
+          const syncing = syncingCodes.includes(record.code);
+          return (
+            <Space>
+              <Button
+                size="small"
+                loading={syncing}
+                onClick={() => handleSyncStock(record)}
+              >
+                同步信息
+              </Button>
+              <Button size="small" onClick={() => handleViewDetails(record)}>
+                查看详细
+              </Button>
+              <Button size="small" onClick={() => handleEditStock(record)}>
+                编辑
+              </Button>
+            </Space>
+          );
+        },
       },
     ],
     []

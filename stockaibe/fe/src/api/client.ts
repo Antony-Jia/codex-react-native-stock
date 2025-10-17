@@ -208,6 +208,11 @@ class ApiClient {
     await this.client.delete(`/shanghai-a/stocks/${code}`);
   }
 
+  async syncShanghaiAStock(code: string): Promise<ShanghaiAStock> {
+    const response = await this.client.post<ShanghaiAStock>(`/shanghai-a/stocks/${code}/sync`);
+    return response.data;
+  }
+
   async getShanghaiAMarketFundFlow(limit: number = 30): Promise<ShanghaiAMarketFundFlow[]> {
     const response = await this.client.get<ShanghaiAMarketFundFlow[]>('/shanghai-a/market-fund-flow', {
       params: { limit },
