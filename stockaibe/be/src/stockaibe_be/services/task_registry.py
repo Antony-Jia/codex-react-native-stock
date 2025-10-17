@@ -5,7 +5,6 @@ from __future__ import annotations
 import datetime as dt
 import importlib
 import os
-import sys
 from pathlib import Path
 from typing import List
 
@@ -31,10 +30,6 @@ def scan_task_modules(tasks_dir: str) -> None:
         logger.warning(f"任务目录不存在: {tasks_dir}")
         return
     
-    # 将任务目录添加到 Python 路径
-    if str(tasks_path.parent) not in sys.path:
-        sys.path.insert(0, str(tasks_path.parent))
-    
     # 扫描所有 Python 文件
     imported_count = 0
     for py_file in tasks_path.glob("*.py"):
@@ -43,9 +38,9 @@ def scan_task_modules(tasks_dir: str) -> None:
         
         module_name = py_file.stem
         try:
-            # 动态导入模块
-            logger.debug(f"正在导入模块: tasks.{module_name}")
-            module = importlib.import_module(f"tasks.{module_name}")
+            # 动态导入模块 - 使用 stockaibe_be.tasks 包路径
+            logger.debug(f"正在导入模块: stockaibe_be.tasks.{module_name}")
+            module = importlib.import_module(f"stockaibe_be.tasks.{module_name}")
             imported_count += 1
             logger.info(f"✓ 已导入任务模块: {module_name}")
             logger.debug(f"  模块路径: {module.__file__}")
@@ -59,10 +54,10 @@ def scan_task_modules(tasks_dir: str) -> None:
 def sync_tasks_to_database(session: Session) -> dict:
     """
     将装饰器注册的任务同步到数据库
-    以数据库为准：
+    以代码为准：
     - 数据库中不存在的任务 → 创建
     - 数据库中存在的任务 → 更新元数据（保留 is_active 状态）
-    - 装饰器中不存在但数据库存在的任务 → 标记为非活跃
+    - 装饰器中不存在但数据库存在的任务 → 从数据库删除
     
     Returns:
         统计信息字典
@@ -94,7 +89,7 @@ def sync_tasks_to_database(session: Session) -> dict:
     stats = {
         "created": 0,
         "updated": 0,
-        "deactivated": 0,
+        "deleted": 0,
         "quota_missing": [],
         "call_limiters": len(registered_call_limiters),
     }
@@ -169,20 +164,19 @@ def sync_tasks_to_database(session: Session) -> dict:
             stats["created"] += 1
             logger.info(f"✓ 创建新任务: {job_id} ({metadata.name})")
     
-    # 2. 标记数据库中存在但装饰器中不存在的任务为非活跃
+    # 2. 删除数据库中存在但装饰器中不存在的任务
     for job_id, db_task in db_tasks.items():
-        if job_id not in all_tasks and db_task.is_active:
-            db_task.is_active = False
-            db_task.updated_at = dt.datetime.now(dt.timezone.utc)
-            stats["deactivated"] += 1
-            logger.warning(f"⚠️ 任务 {job_id} 在代码中不存在，已标记为非活跃")
+        if job_id not in all_tasks:
+            session.delete(db_task)
+            stats["deleted"] += 1
+            logger.warning(f"⚠️ 任务 {job_id} 在代码中不存在，已从数据库删除")
     
     session.commit()
     
     logger.info(
         f"任务同步完成: 创建 {stats['created']} 个, "
         f"更新 {stats['updated']} 个, "
-        f"停用 {stats['deactivated']} 个, "
+        f"删除 {stats['deleted']} 个, "
         f"函数限流器 {stats['call_limiters']} 个"
     )
     

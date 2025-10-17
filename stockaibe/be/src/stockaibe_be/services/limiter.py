@@ -245,20 +245,42 @@ class LimiterService:
         return allowed, remain
     
     def get_current_tokens(self, quota_id: str) -> Optional[float]:
-        """Get current token count for a quota."""
+        """Get current token count for a quota with refill calculation."""
         r = self._get_redis()
         if r:
             try:
                 quota_key = f"quota:{quota_id}"
                 tokens = r.get(f"{quota_key}:tokens")
-                if tokens:
-                    return float(tokens)
-            except Exception:
-                pass
+                last_refill = r.get(f"{quota_key}:last_refill")
+                
+                if tokens is not None and last_refill is not None:
+                    # Get quota config from memory state
+                    state = self.states.get(quota_id)
+                    if state:
+                        # Calculate refill
+                        now = time.time()
+                        elapsed = now - float(last_refill)
+                        added = elapsed * state.refill_rate
+                        current_tokens = min(state.capacity, float(tokens) + added)
+                        
+                        # Update Redis with new values
+                        r.set(f"{quota_key}:tokens", current_tokens)
+                        r.set(f"{quota_key}:last_refill", now)
+                        
+                        return current_tokens
+                    else:
+                        # No state info, just return stored value
+                        return float(tokens)
+            except Exception as e:
+                logger.error(f"获取令牌数失败 {quota_id}: {e}")
         
         # Fallback to memory
         state = self.states.get(quota_id)
-        return state.tokens if state else None
+        if state:
+            now = dt.datetime.now(dt.timezone.utc)
+            state.refill(now)
+            return state.tokens
+        return None
 
 
 limiter_service = LimiterService()

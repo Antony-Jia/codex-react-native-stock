@@ -8,16 +8,12 @@ import {
   Table,
   Button,
   Space,
-  Modal,
-  Form,
-  Input,
   message,
   Tag,
   Popconfirm,
   Typography,
 } from 'antd';
 import {
-  PlusOutlined,
   PlayCircleOutlined,
   DeleteOutlined,
   CheckCircleOutlined,
@@ -25,7 +21,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../api/client';
-import type { Task, TaskCreate } from '../types/api';
+import type { Task } from '../types/api';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -33,8 +29,6 @@ const { Title } = Typography;
 const Tasks: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [form] = Form.useForm();
 
   useEffect(() => {
     loadTasks();
@@ -50,27 +44,6 @@ const Tasks: React.FC = () => {
     } catch (err: unknown) {
       const error = err as Error;
       message.error(error.message || '加载任务失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreate = () => {
-    form.resetFields();
-    setModalVisible(true);
-  };
-
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      setLoading(true);
-      await apiClient.createTask(values as TaskCreate);
-      message.success('任务创建成功');
-      setModalVisible(false);
-      loadTasks();
-    } catch (err: unknown) {
-      const error = err as Error;
-      message.error(error.message || '创建失败');
     } finally {
       setLoading(false);
     }
@@ -173,12 +146,7 @@ const Tasks: React.FC = () => {
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={3}>任务调度</Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-          新建任务
-        </Button>
-      </div>
+      <Title level={3}>任务调度</Title>
 
       <Card>
         <Table
@@ -189,33 +157,6 @@ const Tasks: React.FC = () => {
           pagination={{ pageSize: 10 }}
         />
       </Card>
-
-      <Modal
-        title="新建定时任务"
-        open={modalVisible}
-        onOk={handleSubmit}
-        onCancel={() => setModalVisible(false)}
-        confirmLoading={loading}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            label="任务名称"
-            name="name"
-            rules={[{ required: true, message: '请输入任务名称' }]}
-          >
-            <Input placeholder="例如: 每日数据清理" />
-          </Form.Item>
-
-          <Form.Item
-            label="Cron 表达式"
-            name="cron"
-            rules={[{ required: true, message: '请输入 Cron 表达式' }]}
-            extra="例如: 0 3 * * * (每天凌晨3点)"
-          >
-            <Input placeholder="0 3 * * *" />
-          </Form.Item>
-        </Form>
-      </Modal>
     </Space>
   );
 };

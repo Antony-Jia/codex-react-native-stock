@@ -3,8 +3,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Card, Table, Tag, Typography, Space, Button } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { Card, Table, Tag, Typography, Space, Button, Popconfirm, message } from 'antd';
+import { ReloadOutlined, DeleteOutlined, ClearOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import apiClient from '../api/client';
 import type { Trace } from '../types/api';
@@ -29,6 +29,34 @@ const Traces: React.FC = () => {
       setTraces(data);
     } catch (error) {
       console.error('Failed to load traces:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      setLoading(true);
+      const result = await apiClient.deleteAllTraces();
+      message.success(result.message);
+      loadTraces();
+    } catch (error) {
+      console.error('Failed to delete all traces:', error);
+      message.error('删除失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteOld = async () => {
+    try {
+      setLoading(true);
+      const result = await apiClient.deleteOldTraces();
+      message.success(result.message);
+      loadTraces();
+    } catch (error) {
+      console.error('Failed to delete old traces:', error);
+      message.error('删除失败');
     } finally {
       setLoading(false);
     }
@@ -100,9 +128,33 @@ const Traces: React.FC = () => {
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={3}>请求追踪</Title>
-        <Button icon={<ReloadOutlined />} onClick={loadTraces} loading={loading}>
-          刷新
-        </Button>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={loadTraces} loading={loading}>
+            刷新
+          </Button>
+          <Popconfirm
+            title="确定删除今天之前的所有记录？"
+            description="此操作不可恢复"
+            onConfirm={handleDeleteOld}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button icon={<ClearOutlined />} loading={loading}>
+              删除非当天数据
+            </Button>
+          </Popconfirm>
+          <Popconfirm
+            title="确定删除所有追踪记录？"
+            description="此操作不可恢复，将删除包括今天在内的所有数据"
+            onConfirm={handleDeleteAll}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button icon={<DeleteOutlined />} danger loading={loading}>
+              一键删除全部
+            </Button>
+          </Popconfirm>
+        </Space>
       </div>
 
       <Card>

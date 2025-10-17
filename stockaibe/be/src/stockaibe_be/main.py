@@ -69,9 +69,8 @@ def startup_event() -> None:
     SQLModel.metadata.create_all(engine)
     
     # Determine tasks directory
-    # 获取项目根目录下的 tasks 目录
-    project_root = Path(__file__).parent.parent.parent
-    tasks_dir = project_root / "tasks"
+    # 获取 stockaibe_be 包下的 tasks 目录
+    tasks_dir = Path(__file__).parent / "tasks"
     
     # Initialize scheduler jobs with decorator tasks
     logger.info("初始化调度任务...")

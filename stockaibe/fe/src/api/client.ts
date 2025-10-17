@@ -143,6 +143,16 @@ class ApiClient {
     return response.data;
   }
 
+  async deleteAllTraces(): Promise<{ message: string; deleted_count: number }> {
+    const response = await this.client.delete<{ message: string; deleted_count: number }>('/traces/all');
+    return response.data;
+  }
+
+  async deleteOldTraces(): Promise<{ message: string; deleted_count: number }> {
+    const response = await this.client.delete<{ message: string; deleted_count: number }>('/traces/old');
+    return response.data;
+  }
+
   // Tasks API
   async getTasks(): Promise<Task[]> {
     const response = await this.client.get<Task[]>('/tasks');

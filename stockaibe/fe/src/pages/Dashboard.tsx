@@ -12,7 +12,7 @@ import {
 } from '@ant-design/icons';
 import { Line, LineConfig, Gauge, GaugeConfig } from '@ant-design/plots';
 import apiClient from '../api/client';
-import type { MetricsCurrent, MetricSeriesPoint } from '../types/api';
+import type { MetricsCurrent, MetricSeriesPoint, Quota } from '../types/api';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
@@ -22,6 +22,7 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [currentMetrics, setCurrentMetrics] = useState<MetricsCurrent[]>([]);
   const [seriesData, setSeriesData] = useState<MetricSeriesPoint[]>([]);
+  const [quotas, setQuotas] = useState<Quota[]>([]);
 
   useEffect(() => {
     loadData();
@@ -31,12 +32,14 @@ const Dashboard: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [metrics, series] = await Promise.all([
+      const [metrics, series, quotasList] = await Promise.all([
         apiClient.getCurrentMetrics(),
         apiClient.getMetricsSeries(undefined, 50),
+        apiClient.getQuotas(),
       ]);
       setCurrentMetrics(metrics);
       setSeriesData(series.items);
+      setQuotas(quotasList);
       setError(null);
     } catch (err: unknown) {
       const error = err as Error;
@@ -181,21 +184,30 @@ const Dashboard: React.FC = () => {
       {/* Quota Status */}
       <Card title="配额状态">
         <Row gutter={[16, 16]}>
-          {currentMetrics.map((metric) => (
-            <Col span={8} key={metric.quota_id}>
-              <Card size="small">
-                <Typography.Text strong>{metric.quota_id}</Typography.Text>
-                <div style={{ marginTop: 8 }}>
-                  <Typography.Text type="secondary">令牌余量：</Typography.Text>
-                  <Progress
-                    percent={metric.tokens_remain ? Math.min(100, metric.tokens_remain) : 0}
-                    size="small"
-                    status={metric.tokens_remain && metric.tokens_remain > 20 ? 'success' : 'exception'}
-                  />
-                </div>
-              </Card>
-            </Col>
-          ))}
+          {quotas.map((quota) => {
+            const percent = quota.current_tokens !== undefined && quota.current_tokens !== null
+              ? Math.round((quota.current_tokens / quota.capacity) * 100)
+              : 0;
+            const color = percent > 50 ? '#52c41a' : percent > 20 ? '#faad14' : '#ff4d4f';
+            return (
+              <Col span={8} key={quota.id}>
+                <Card size="small">
+                  <Typography.Text strong>{quota.name || quota.id}</Typography.Text>
+                  <div style={{ marginTop: 8 }}>
+                    <Typography.Text type="secondary">
+                      令牌余量：{quota.current_tokens?.toFixed(2) || '-'} / {quota.capacity}
+                    </Typography.Text>
+                    <Progress
+                      percent={percent}
+                      size="small"
+                      status={percent < 20 ? 'exception' : 'normal'}
+                      strokeColor={color}
+                    />
+                  </div>
+                </Card>
+              </Col>
+            );
+          })}
         </Row>
       </Card>
     </Space>
