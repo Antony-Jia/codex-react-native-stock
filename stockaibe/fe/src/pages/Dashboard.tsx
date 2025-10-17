@@ -72,7 +72,17 @@ const Dashboard: React.FC = () => {
     seriesField: 'type',
     smooth: true,
     animation: { appear: { animation: 'path-in', duration: 1000 } },
-    color: ['#52c41a', '#ff4d4f', '#faad14'],
+    color: ['#52c41a', '#ff4d4f', '#faad14'], // 成功-绿色, 错误-红色, 限流-橙色
+    legend: {
+      position: 'top-right',
+    },
+    lineStyle: {
+      lineWidth: 2,
+    },
+    point: {
+      size: 3,
+      shape: 'circle',
+    },
   };
 
   const gaugeConfig: GaugeConfig = {

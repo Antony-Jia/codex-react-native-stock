@@ -192,6 +192,8 @@ def _execute_limiter_task(job_id: str, session: Session) -> None:
                 cost=1,
                 success=False,  # 先标记为 False，执行成功后更新
                 message=f"执行任务: {metadata.name}",
+                func_id=metadata.job_id,
+                func_name=metadata.name,
             )
             
             if not allowed:
@@ -206,6 +208,8 @@ def _execute_limiter_task(job_id: str, session: Session) -> None:
             latency_ms = (time.time() - start_time) * 1000
             trace = TraceLog(
                 quota_id=quota.id,
+                func_id=metadata.job_id,
+                func_name=metadata.name,
                 status_code=200,
                 latency_ms=latency_ms,
                 message=f"任务执行成功: {metadata.name}",
@@ -226,6 +230,8 @@ def _execute_limiter_task(job_id: str, session: Session) -> None:
             latency_ms = (time.time() - start_time) * 1000
             trace = TraceLog(
                 quota_id=quota.id,
+                func_id=metadata.job_id,
+                func_name=metadata.name,
                 status_code=500,
                 latency_ms=latency_ms,
                 message=f"任务执行失败: {error_msg}",

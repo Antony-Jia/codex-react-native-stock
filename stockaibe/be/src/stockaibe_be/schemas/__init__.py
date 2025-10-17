@@ -3,6 +3,7 @@
 from .schemas import (
     AcquireRequest,
     AcquireResponse,
+    FuncStatsRead,
     MetricSeriesPoint,
     MetricsCurrentResponse,
     MetricsSeriesResponse,
@@ -39,6 +40,7 @@ __all__ = [
     "MetricsSeriesResponse",
     "MetricsCurrentResponse",
     "TraceRead",
+    "FuncStatsRead",
     "TaskCreate",
     "TaskRead",
     "TaskTriggerRequest",

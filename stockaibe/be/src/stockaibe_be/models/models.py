@@ -70,6 +70,8 @@ class TraceLog(TimestampMixin, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     quota_id: str = Field(foreign_key="quotas.id", index=True)
+    func_id: Optional[str] = Field(default=None, max_length=100, index=True)  # 限流函数ID（LimitTask/LimitCallTask的id）
+    func_name: Optional[str] = Field(default=None, max_length=100)  # 限流函数名称
     status_code: int
     latency_ms: Optional[float] = Field(default=None)
     message: Optional[str] = Field(default=None, sa_column=Column(Text))

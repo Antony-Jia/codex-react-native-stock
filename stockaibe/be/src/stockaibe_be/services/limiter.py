@@ -193,6 +193,8 @@ class LimiterService:
         success: bool,
         latency_ms: float | None = None,
         message: str | None = None,
+        func_id: str | None = None,
+        func_name: str | None = None,
     ) -> tuple[bool, float]:
         """Acquire tokens with rate limiting."""
         now = dt.datetime.now(dt.timezone.utc)
@@ -215,6 +217,8 @@ class LimiterService:
         # Record trace
         trace = TraceLog(
             quota_id=quota.id,
+            func_id=func_id,
+            func_name=func_name,
             status_code=200 if allowed and success else 429 if not allowed else 500,
             latency_ms=latency_ms,
             message=message,

@@ -258,6 +258,8 @@ def LimitCallTask(
                         cost=1,
                         success=False,  # 先标记为 False
                         message=f"函数调用: {name}",
+                        func_id=id,
+                        func_name=name,
                     )
                     
                     if allowed:
@@ -269,6 +271,8 @@ def LimitCallTask(
                             latency_ms = (time.time() - start_time) * 1000
                             trace = TraceLog(
                                 quota_id=quota.id,
+                                func_id=id,
+                                func_name=name,
                                 status_code=200,
                                 latency_ms=latency_ms,
                                 message=f"函数调用成功: {name}",
@@ -287,6 +291,8 @@ def LimitCallTask(
                             latency_ms = (time.time() - start_time) * 1000
                             trace = TraceLog(
                                 quota_id=quota.id,
+                                func_id=id,
+                                func_name=name,
                                 status_code=500,
                                 latency_ms=latency_ms,
                                 message=f"函数调用失败: {str(e)}",

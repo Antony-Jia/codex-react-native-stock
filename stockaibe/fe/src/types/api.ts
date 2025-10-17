@@ -99,10 +99,24 @@ export interface MetricsSeriesResponse {
 export interface Trace {
   id: number;
   quota_id: string;
+  func_id?: string;
+  func_name?: string;
   status_code: number;
   latency_ms?: number;
   message?: string;
   created_at: string;
+}
+
+export interface FuncStats {
+  func_id: string;
+  func_name?: string;
+  quota_id: string;
+  total_calls: number;
+  success_calls: number;
+  failed_calls: number;
+  limited_calls: number;
+  avg_latency_ms?: number;
+  last_call_at?: string;
 }
 
 // Task types

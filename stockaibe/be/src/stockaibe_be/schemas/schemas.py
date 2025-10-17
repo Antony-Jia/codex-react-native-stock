@@ -115,6 +115,8 @@ class MetricsCurrentResponse(BaseModel):
 class TraceRead(BaseModel):
     id: int
     quota_id: str
+    func_id: Optional[str] = None
+    func_name: Optional[str] = None
     status_code: int
     latency_ms: Optional[float]
     message: Optional[str]
@@ -137,3 +139,16 @@ class TaskRead(BaseModel):
 
 class TaskTriggerRequest(BaseModel):
     job_id: str
+
+
+class FuncStatsRead(BaseModel):
+    """限流函数调用统计"""
+    func_id: str
+    func_name: Optional[str]
+    quota_id: str
+    total_calls: int
+    success_calls: int  # status_code = 200
+    failed_calls: int  # status_code = 500
+    limited_calls: int  # status_code = 429
+    avg_latency_ms: Optional[float]
+    last_call_at: Optional[dt.datetime]

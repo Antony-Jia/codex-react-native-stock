@@ -14,6 +14,7 @@ import type {
   MetricsCurrent,
   MetricsSeriesResponse,
   Trace,
+  FuncStats,
   Task,
   TaskCreate,
   TaskTrigger,
@@ -150,6 +151,11 @@ class ApiClient {
 
   async deleteOldTraces(): Promise<{ message: string; deleted_count: number }> {
     const response = await this.client.delete<{ message: string; deleted_count: number }>('/traces/old');
+    return response.data;
+  }
+
+  async getFuncStats(): Promise<FuncStats[]> {
+    const response = await this.client.get<FuncStats[]>('/traces/func-stats');
     return response.data;
   }
 
