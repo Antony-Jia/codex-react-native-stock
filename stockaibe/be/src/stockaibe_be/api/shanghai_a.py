@@ -249,18 +249,22 @@ def sync_shanghai_a_stock_info(
     response_model=List[ShanghaiAStockBalanceSheetSummary],
 )
 def list_shanghai_a_balance_sheet_summary(
-    report_period: Optional[dt.date] = Query(None, description="Quarter end date"),
+    report_period: Optional[dt.date] = Query(None, description="Quarter end date (deprecated, use start_period)"),
+    start_period: Optional[dt.date] = Query(None, description="Start quarter end date"),
+    end_period: Optional[dt.date] = Query(None, description="End quarter end date"),
     announcement_date: Optional[dt.date] = Query(None, description="Announcement date"),
     stock_code: Optional[str] = Query(None, description="Filter by stock code"),
     limit: int = Query(500, ge=1, le=2000),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """Return balance sheet snapshot per stock for the given quarter."""
-    target_period = report_period
+    """Return balance sheet snapshot per stock for the given quarter or quarter range."""
+    # Support both old single period and new range query
+    target_start = start_period or report_period
+    target_end = end_period
     target_announcement = announcement_date
 
-    if target_period is None and target_announcement is None:
+    if target_start is None and target_end is None and target_announcement is None:
         target_announcement = db.exec(
             select(ShanghaiAStockBalanceSheet.announcement_date)
             .order_by(ShanghaiAStockBalanceSheet.announcement_date.desc())
@@ -278,12 +282,17 @@ def list_shanghai_a_balance_sheet_summary(
 
     if target_announcement is not None:
         statement = statement.where(ShanghaiAStockBalanceSheet.announcement_date == target_announcement)
-    if target_period is not None:
-        statement = statement.where(ShanghaiAStockBalanceSheet.report_period == target_period)
+    if target_start is not None:
+        statement = statement.where(ShanghaiAStockBalanceSheet.report_period >= target_start)
+    if target_end is not None:
+        statement = statement.where(ShanghaiAStockBalanceSheet.report_period <= target_end)
     if normalized_code:
         statement = statement.where(ShanghaiAStockBalanceSheet.stock_code == normalized_code)
 
-    statement = statement.order_by(ShanghaiAStockBalanceSheet.stock_code.asc()).limit(limit)
+    statement = statement.order_by(
+        ShanghaiAStockBalanceSheet.stock_code.asc(),
+        ShanghaiAStockBalanceSheet.report_period.desc()
+    ).limit(limit)
 
     results = db.exec(statement).all()
     response: List[ShanghaiAStockBalanceSheetSummary] = []
@@ -318,18 +327,22 @@ def list_shanghai_a_balance_sheet_summary(
     response_model=List[ShanghaiAStockPerformanceSummary],
 )
 def list_shanghai_a_performance_summary(
-    report_period: Optional[dt.date] = Query(None, description="Quarter end date"),
+    report_period: Optional[dt.date] = Query(None, description="Quarter end date (deprecated, use start_period)"),
+    start_period: Optional[dt.date] = Query(None, description="Start quarter end date"),
+    end_period: Optional[dt.date] = Query(None, description="End quarter end date"),
     announcement_date: Optional[dt.date] = Query(None, description="Announcement date"),
     stock_code: Optional[str] = Query(None, description="Filter by stock code"),
     limit: int = Query(500, ge=1, le=2000),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    """Return performance snapshot per stock for the given quarter."""
-    target_period = report_period
+    """Return performance snapshot per stock for the given quarter or quarter range."""
+    # Support both old single period and new range query
+    target_start = start_period or report_period
+    target_end = end_period
     target_announcement = announcement_date
 
-    if target_period is None and target_announcement is None:
+    if target_start is None and target_end is None and target_announcement is None:
         target_announcement = db.exec(
             select(ShanghaiAStockPerformance.announcement_date)
             .order_by(ShanghaiAStockPerformance.announcement_date.desc())
@@ -347,12 +360,17 @@ def list_shanghai_a_performance_summary(
 
     if target_announcement is not None:
         statement = statement.where(ShanghaiAStockPerformance.announcement_date == target_announcement)
-    if target_period is not None:
-        statement = statement.where(ShanghaiAStockPerformance.report_period == target_period)
+    if target_start is not None:
+        statement = statement.where(ShanghaiAStockPerformance.report_period >= target_start)
+    if target_end is not None:
+        statement = statement.where(ShanghaiAStockPerformance.report_period <= target_end)
     if normalized_code:
         statement = statement.where(ShanghaiAStockPerformance.stock_code == normalized_code)
 
-    statement = statement.order_by(ShanghaiAStockPerformance.stock_code.asc()).limit(limit)
+    statement = statement.order_by(
+        ShanghaiAStockPerformance.stock_code.asc(),
+        ShanghaiAStockPerformance.report_period.desc()
+    ).limit(limit)
 
     results = db.exec(statement).all()
     response: List[ShanghaiAStockPerformanceSummary] = []

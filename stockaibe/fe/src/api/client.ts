@@ -244,6 +244,8 @@ class ApiClient {
 
   async getShanghaiABalanceSheetSummary(params?: {
     report_period?: string;
+    start_period?: string;
+    end_period?: string;
     announcement_date?: string;
     stock_code?: string;
     limit?: number;
@@ -267,6 +269,8 @@ class ApiClient {
 
   async getShanghaiAPerformanceSummary(params?: {
     report_period?: string;
+    start_period?: string;
+    end_period?: string;
     announcement_date?: string;
     stock_code?: string;
     limit?: number;
