@@ -4,20 +4,29 @@ from __future__ import annotations
 
 import datetime as dt
 import math
-from typing import Dict, Iterable, Optional
+from typing import Dict, Iterable, Optional, Set
 
 import akshare as ak
 import pandas as pd
 from sqlmodel import Session, select
 
 from ..core.logging_config import get_logger
-from ..models import ShanghaiAMarketFundFlow, ShanghaiAStock, ShanghaiAStockFundFlow
+from ..models import (
+    ShanghaiAMarketFundFlow,
+    ShanghaiAStock,
+    ShanghaiAStockBalanceSheet,
+    ShanghaiAStockFundFlow,
+    ShanghaiAStockPerformance,
+)
 from ..services.task_decorators import LimitCallTask, SchedulerTask
 
 logger = get_logger(__name__)
 
 # Quota used for AkShare calls (needs to exist in quota management)
 AKSHARE_DAILY_QUOTA = "akshare_daily"
+MAX_FINANCIAL_QUARTERS = 40
+CODE_COLUMN_CANDIDATES = ("股票代码", "代码", "证券代码")
+NAME_COLUMN_CANDIDATES = ("股票简称", "名称", "股票名称", "简称", "证券简称")
 
 
 # ---------------------------------------------------------------------------
@@ -68,6 +77,153 @@ def _to_percent(value: object) -> Optional[float]:
     return _to_float(value)
 
 
+def _parse_date(value: object) -> Optional[dt.date]:
+    """Parse a string-like date into a Python date."""
+    if value in (None, "", "-", "--"):
+        return None
+    try:
+        ts = pd.to_datetime(value, errors="coerce")
+    except Exception:
+        return None
+    if pd.isna(ts):
+        return None
+    if isinstance(ts, pd.Timestamp):
+        return ts.date()
+    if isinstance(ts, dt.datetime):
+        return ts.date()
+    if isinstance(ts, dt.date):
+        return ts
+    return None
+
+
+def _normalize_stock_code(value: object) -> str:
+    """Normalize various stock code representations to 6-digit format."""
+    if value is None:
+        return ""
+    text = str(value).strip().upper().replace(".", "")
+    if not text:
+        return ""
+    for prefix in ("SH", "SZ", "BJ", "HK"):
+        if text.startswith(prefix):
+            text = text[len(prefix) :]
+            break
+    text = text.strip()
+    if text.isdigit():
+        return text.zfill(6)
+    return text
+
+
+def _extract_stock_row(df: pd.DataFrame, stock_code: str) -> Optional[pd.Series]:
+    """Return the first row that matches the given stock code."""
+    if df is None or df.empty:
+        return None
+    normalized_target = _normalize_stock_code(stock_code)
+    for column in ("股票代码", "代码", "证券代码"):
+        if column in df.columns:
+            normalized_codes = df[column].apply(_normalize_stock_code)
+            matched = df.loc[normalized_codes == normalized_target]
+            if not matched.empty:
+                return matched.iloc[0]
+    return None
+
+
+def _normalize_quarter_end(date_value: dt.date) -> dt.date:
+    """Return the quarter-end date for the provided date."""
+    quarter = ((date_value.month - 1) // 3) + 1
+    quarter_end_month = quarter * 3
+    day_map = {3: 31, 6: 30, 9: 30, 12: 31}
+    day = day_map[quarter_end_month]
+    return dt.date(date_value.year, quarter_end_month, day)
+
+
+def _iter_quarters(start: dt.date, end: dt.date):
+    """Yield quarter-end dates between start and end (inclusive)."""
+    current = _normalize_quarter_end(start)
+    target_end = _normalize_quarter_end(end)
+    processed = 0
+    while current <= target_end:
+        yield current
+        processed += 1
+        if processed > MAX_FINANCIAL_QUARTERS:
+            raise ValueError(
+                f"Requested range exceeds limit of {MAX_FINANCIAL_QUARTERS} quarters"
+            )
+        if current.month == 12:
+            current = dt.date(current.year + 1, 3, 31)
+        else:
+            next_month = current.month + 3
+            day_map = {3: 31, 6: 30, 9: 30, 12: 31}
+            current = dt.date(current.year, next_month, day_map[next_month])
+
+
+def _upsert_balance_sheet(
+    session: Session,
+    stock_code: str,
+    report_period: dt.date,
+    payload: Dict[str, object],
+) -> None:
+    """Persist a balance sheet row."""
+    record = session.exec(
+        select(ShanghaiAStockBalanceSheet).where(
+            ShanghaiAStockBalanceSheet.stock_code == stock_code,
+            ShanghaiAStockBalanceSheet.report_period == report_period,
+        )
+    ).first()
+    if record is None:
+        record = ShanghaiAStockBalanceSheet(
+            stock_code=stock_code,
+            report_period=report_period,
+        )
+        session.add(record)
+
+    record.announcement_date = _parse_date(payload.get("公告日期"))
+    record.currency_funds = _to_float(payload.get("资产-货币资金"))
+    record.accounts_receivable = _to_float(payload.get("资产-应收账款"))
+    record.inventory = _to_float(payload.get("资产-存货"))
+    record.total_assets = _to_float(payload.get("资产-总资产"))
+    record.total_assets_yoy = _to_percent(payload.get("资产-总资产同比"))
+    record.accounts_payable = _to_float(payload.get("负债-应付账款"))
+    record.advance_receipts = _to_float(payload.get("负债-预收账款"))
+    record.total_liabilities = _to_float(payload.get("负债-总负债"))
+    record.total_liabilities_yoy = _to_percent(payload.get("负债-总负债同比"))
+    record.debt_to_asset_ratio = _to_percent(payload.get("资产负债率"))
+    record.total_equity = _to_float(payload.get("股东权益合计"))
+
+
+def _upsert_performance(
+    session: Session,
+    stock_code: str,
+    report_period: dt.date,
+    payload: Dict[str, object],
+) -> None:
+    """Persist an earnings performance row."""
+    record = session.exec(
+        select(ShanghaiAStockPerformance).where(
+            ShanghaiAStockPerformance.stock_code == stock_code,
+            ShanghaiAStockPerformance.report_period == report_period,
+        )
+    ).first()
+    if record is None:
+        record = ShanghaiAStockPerformance(
+            stock_code=stock_code,
+            report_period=report_period,
+        )
+        session.add(record)
+
+    record.announcement_date = _parse_date(payload.get("最新公告日期"))
+    record.eps = _to_float(payload.get("每股收益"))
+    record.revenue = _to_float(payload.get("营业总收入-营业总收入"))
+    record.revenue_yoy = _to_percent(payload.get("营业总收入-同比增长"))
+    record.revenue_qoq = _to_percent(payload.get("营业总收入-季度环比增长"))
+    record.net_profit = _to_float(payload.get("净利润-净利润"))
+    record.net_profit_yoy = _to_percent(payload.get("净利润-同比增长"))
+    record.net_profit_qoq = _to_percent(payload.get("净利润-季度环比增长"))
+    record.bps = _to_float(payload.get("每股净资产"))
+    record.roe = _to_percent(payload.get("净资产收益率"))
+    record.operating_cash_flow_ps = _to_float(payload.get("每股经营现金流量"))
+    record.gross_margin = _to_percent(payload.get("销售毛利率"))
+    industry_value = payload.get("所处行业")
+    record.industry = str(industry_value).strip() if industry_value not in (None, "-", "--") else None
 def _ensure_stock(session: Session, code: str, name: str) -> ShanghaiAStock:
     """Ensure a Shanghai A stock master record exists and is active."""
     stock = session.get(ShanghaiAStock, code)
@@ -238,6 +394,28 @@ def fetch_stock_individual_info(symbol: str) -> pd.DataFrame:
     return ak.stock_individual_info_em(symbol=symbol)
 
 
+@LimitCallTask(
+    id="akshare_stock_balance_sheet_quarterly",
+    name="Stock balance sheet (quarterly)",
+    quota_name=AKSHARE_DAILY_QUOTA,
+    description="Fetch quarterly balance sheet data via ak.stock_zcfz_em",
+)
+def fetch_stock_balance_sheet(raw_date: str) -> pd.DataFrame:
+    """Wrapper around ak.stock_zcfz_em."""
+    return ak.stock_zcfz_em(date=raw_date)
+
+
+@LimitCallTask(
+    id="akshare_stock_performance_quarterly",
+    name="Stock performance (quarterly)",
+    quota_name=AKSHARE_DAILY_QUOTA,
+    description="Fetch quarterly earnings performance data via ak.stock_yjbb_em",
+)
+def fetch_stock_performance(raw_date: str) -> pd.DataFrame:
+    """Wrapper around ak.stock_yjbb_em."""
+    return ak.stock_yjbb_em(date=raw_date)
+
+
 # ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
@@ -329,6 +507,107 @@ def run_shanghai_a_daily_pipeline(
 
     session.commit()
     logger.info("Shanghai A fund flow pipeline summary: %s", summary)
+    return summary
+
+
+def collect_shanghai_a_financials(
+    session: Session,
+    start_period: dt.date,
+    end_period: dt.date,
+    include_balance_sheet: bool = True,
+    include_performance: bool = True,
+) -> Dict[str, object]:
+    """Collect quarterly financial datasets for all Shanghai A stocks within the range."""
+    if not include_balance_sheet and not include_performance:
+        raise ValueError("At least one dataset must be requested")
+    if start_period > end_period:
+        raise ValueError("start_period must be earlier than or equal to end_period")
+
+    summary: Dict[str, object] = {
+        "quarters_processed": [],
+        "balance_sheet_rows": 0,
+        "balance_sheet_stocks": 0,
+        "performance_rows": 0,
+        "performance_stocks": 0,
+    }
+
+    balance_codes: Set[str] = set()
+    performance_codes: Set[str] = set()
+
+    try:
+        for quarter_end in _iter_quarters(start_period, end_period):
+            summary["quarters_processed"].append(quarter_end.isoformat())
+            quarter_key = quarter_end.strftime("%Y%m%d")
+
+            if include_balance_sheet:
+                try:
+                    balance_df = fetch_stock_balance_sheet(quarter_key)
+                except Exception as exc:
+                    logger.warning("Balance sheet fetch failed at %s: %s", quarter_key, exc)
+                else:
+                    if balance_df is None or balance_df.empty:
+                        logger.info("Balance sheet dataset empty for %s", quarter_key)
+                    else:
+                        for _, row in balance_df.iterrows():
+                            code = None
+                            for candidate in CODE_COLUMN_CANDIDATES:
+                                value = row.get(candidate)
+                                if value:
+                                    code = _normalize_stock_code(value)
+                                    if code:
+                                        break
+                            if not code:
+                                continue
+                            name = None
+                            for candidate in NAME_COLUMN_CANDIDATES:
+                                raw_name = row.get(candidate)
+                                if isinstance(raw_name, str) and raw_name.strip():
+                                    name = raw_name.strip()
+                                    break
+                            _ensure_stock(session, code, name or code)
+                            _upsert_balance_sheet(session, code, quarter_end, row.to_dict())
+                            summary["balance_sheet_rows"] += 1
+                            balance_codes.add(code)
+
+            if include_performance:
+                try:
+                    performance_df = fetch_stock_performance(quarter_key)
+                except Exception as exc:
+                    logger.warning("Performance fetch failed at %s: %s", quarter_key, exc)
+                else:
+                    if performance_df is None or performance_df.empty:
+                        logger.info("Performance dataset empty for %s", quarter_key)
+                    else:
+                        for _, row in performance_df.iterrows():
+                            code = None
+                            for candidate in CODE_COLUMN_CANDIDATES:
+                                value = row.get(candidate)
+                                if value:
+                                    code = _normalize_stock_code(value)
+                                    if code:
+                                        break
+                            if not code:
+                                continue
+                            name = None
+                            for candidate in NAME_COLUMN_CANDIDATES:
+                                raw_name = row.get(candidate)
+                                if isinstance(raw_name, str) and raw_name.strip():
+                                    name = raw_name.strip()
+                                    break
+                            _ensure_stock(session, code, name or code)
+                            _upsert_performance(session, code, quarter_end, row.to_dict())
+                            summary["performance_rows"] += 1
+                            performance_codes.add(code)
+
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+
+    summary["balance_sheet_stocks"] = len(balance_codes)
+    summary["performance_stocks"] = len(performance_codes)
+
+    logger.info("Financial collection summary: %s", summary)
     return summary
 
 

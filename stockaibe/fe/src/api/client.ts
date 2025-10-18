@@ -26,6 +26,12 @@ import type {
   ShanghaiAManualUpdateRequest,
   ShanghaiAManualUpdateResponse,
   ShanghaiAStockInfo,
+  ShanghaiAStockBalanceSheet,
+  ShanghaiAStockPerformance,
+  ShanghaiAStockBalanceSheetSummary,
+  ShanghaiAStockPerformanceSummary,
+  ShanghaiAFinancialCollectRequest,
+  ShanghaiAFinancialCollectResponse,
 } from '../types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
@@ -225,6 +231,52 @@ class ApiClient {
     return response.data;
   }
 
+  async getShanghaiAStockBalanceSheets(
+    code: string,
+    params?: { limit?: number }
+  ): Promise<ShanghaiAStockBalanceSheet[]> {
+    const response = await this.client.get<ShanghaiAStockBalanceSheet[]>(
+      `/shanghai-a/stocks/${code}/balance-sheets`,
+      { params }
+    );
+    return response.data;
+  }
+
+  async getShanghaiABalanceSheetSummary(params?: {
+    report_period?: string;
+    announcement_date?: string;
+    stock_code?: string;
+    limit?: number;
+  }): Promise<ShanghaiAStockBalanceSheetSummary[]> {
+    const response = await this.client.get<ShanghaiAStockBalanceSheetSummary[]>('/shanghai-a/financials/balance-sheets', {
+      params,
+    });
+    return response.data;
+  }
+
+  async getShanghaiAStockPerformances(
+    code: string,
+    params?: { limit?: number }
+  ): Promise<ShanghaiAStockPerformance[]> {
+    const response = await this.client.get<ShanghaiAStockPerformance[]>(
+      `/shanghai-a/stocks/${code}/performances`,
+      { params }
+    );
+    return response.data;
+  }
+
+  async getShanghaiAPerformanceSummary(params?: {
+    report_period?: string;
+    announcement_date?: string;
+    stock_code?: string;
+    limit?: number;
+  }): Promise<ShanghaiAStockPerformanceSummary[]> {
+    const response = await this.client.get<ShanghaiAStockPerformanceSummary[]>('/shanghai-a/financials/performances', {
+      params,
+    });
+    return response.data;
+  }
+
   async getShanghaiAStockFundFlow(params?: {
     trade_date?: string;
     stock_code?: string;
@@ -238,6 +290,16 @@ class ApiClient {
     data: ShanghaiAManualUpdateRequest
   ): Promise<ShanghaiAManualUpdateResponse> {
     const response = await this.client.post<ShanghaiAManualUpdateResponse>('/shanghai-a/manual-update', data);
+    return response.data;
+  }
+
+  async collectShanghaiAFinancials(
+    data: ShanghaiAFinancialCollectRequest
+  ): Promise<ShanghaiAFinancialCollectResponse> {
+    const response = await this.client.post<ShanghaiAFinancialCollectResponse>(
+      '/shanghai-a/financials/collect',
+      data
+    );
     return response.data;
   }
 

@@ -11,7 +11,15 @@ from sqlmodel import Session, delete, select
 
 from ..core.logging_config import get_logger
 from ..core.security import get_current_active_superuser, get_current_user, get_db
-from ..models import ShanghaiAMarketFundFlow, ShanghaiAStock, ShanghaiAStockFundFlow, ShanghaiAStockInfo, User
+from ..models import (
+    ShanghaiAMarketFundFlow,
+    ShanghaiAStock,
+    ShanghaiAStockBalanceSheet,
+    ShanghaiAStockFundFlow,
+    ShanghaiAStockInfo,
+    ShanghaiAStockPerformance,
+    User,
+)
 from ..schemas import (
     ShanghaiAManualUpdateRequest,
     ShanghaiAManualUpdateResponse,
@@ -21,9 +29,16 @@ from ..schemas import (
     ShanghaiAStockInfoRead,
     ShanghaiAStockRead,
     ShanghaiAStockUpdate,
+    ShanghaiAStockBalanceSheetRead,
+    ShanghaiAStockPerformanceRead,
+    ShanghaiAStockBalanceSheetSummary,
+    ShanghaiAStockPerformanceSummary,
+    ShanghaiAFinancialCollectRequest,
+    ShanghaiAFinancialCollectResponse,
 )
 from ..tasks.aksharetest import (
     fetch_stock_individual_info,
+    collect_shanghai_a_financials,
     run_shanghai_a_daily_pipeline,
 )
 
@@ -222,6 +237,230 @@ def sync_shanghai_a_stock_info(
     _refresh_stock_info(db, code)
     db.refresh(stock)
     return stock
+
+
+# ---------------------------------------------------------------------------
+# Financial datasets
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/financials/balance-sheets",
+    response_model=List[ShanghaiAStockBalanceSheetSummary],
+)
+def list_shanghai_a_balance_sheet_summary(
+    report_period: Optional[dt.date] = Query(None, description="Quarter end date"),
+    announcement_date: Optional[dt.date] = Query(None, description="Announcement date"),
+    stock_code: Optional[str] = Query(None, description="Filter by stock code"),
+    limit: int = Query(500, ge=1, le=2000),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Return balance sheet snapshot per stock for the given quarter."""
+    target_period = report_period
+    target_announcement = announcement_date
+
+    if target_period is None and target_announcement is None:
+        target_announcement = db.exec(
+            select(ShanghaiAStockBalanceSheet.announcement_date)
+            .order_by(ShanghaiAStockBalanceSheet.announcement_date.desc())
+            .limit(1)
+        ).first()
+        if target_announcement is None:
+            return []
+
+    statement = (
+        select(ShanghaiAStockBalanceSheet, ShanghaiAStock)
+        .join(ShanghaiAStock, ShanghaiAStockBalanceSheet.stock_code == ShanghaiAStock.code, isouter=True)
+    )
+
+    normalized_code = stock_code.strip() if stock_code else None
+
+    if target_announcement is not None:
+        statement = statement.where(ShanghaiAStockBalanceSheet.announcement_date == target_announcement)
+    if target_period is not None:
+        statement = statement.where(ShanghaiAStockBalanceSheet.report_period == target_period)
+    if normalized_code:
+        statement = statement.where(ShanghaiAStockBalanceSheet.stock_code == normalized_code)
+
+    statement = statement.order_by(ShanghaiAStockBalanceSheet.stock_code.asc()).limit(limit)
+
+    results = db.exec(statement).all()
+    response: List[ShanghaiAStockBalanceSheetSummary] = []
+    for sheet, stock in results:
+        response.append(
+            ShanghaiAStockBalanceSheetSummary(
+                stock_code=sheet.stock_code,
+                stock_name=stock.name if stock else None,
+                short_name=stock.short_name if stock else None,
+                report_period=sheet.report_period,
+                announcement_date=sheet.announcement_date,
+                currency_funds=sheet.currency_funds,
+                accounts_receivable=sheet.accounts_receivable,
+                inventory=sheet.inventory,
+                total_assets=sheet.total_assets,
+                total_assets_yoy=sheet.total_assets_yoy,
+                accounts_payable=sheet.accounts_payable,
+                advance_receipts=sheet.advance_receipts,
+                total_liabilities=sheet.total_liabilities,
+                total_liabilities_yoy=sheet.total_liabilities_yoy,
+                debt_to_asset_ratio=sheet.debt_to_asset_ratio,
+                total_equity=sheet.total_equity,
+                created_at=sheet.created_at,
+                updated_at=sheet.updated_at,
+            )
+        )
+    return response
+
+
+@router.get(
+    "/financials/performances",
+    response_model=List[ShanghaiAStockPerformanceSummary],
+)
+def list_shanghai_a_performance_summary(
+    report_period: Optional[dt.date] = Query(None, description="Quarter end date"),
+    announcement_date: Optional[dt.date] = Query(None, description="Announcement date"),
+    stock_code: Optional[str] = Query(None, description="Filter by stock code"),
+    limit: int = Query(500, ge=1, le=2000),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Return performance snapshot per stock for the given quarter."""
+    target_period = report_period
+    target_announcement = announcement_date
+
+    if target_period is None and target_announcement is None:
+        target_announcement = db.exec(
+            select(ShanghaiAStockPerformance.announcement_date)
+            .order_by(ShanghaiAStockPerformance.announcement_date.desc())
+            .limit(1)
+        ).first()
+        if target_announcement is None:
+            return []
+
+    statement = (
+        select(ShanghaiAStockPerformance, ShanghaiAStock)
+        .join(ShanghaiAStock, ShanghaiAStockPerformance.stock_code == ShanghaiAStock.code, isouter=True)
+    )
+
+    normalized_code = stock_code.strip() if stock_code else None
+
+    if target_announcement is not None:
+        statement = statement.where(ShanghaiAStockPerformance.announcement_date == target_announcement)
+    if target_period is not None:
+        statement = statement.where(ShanghaiAStockPerformance.report_period == target_period)
+    if normalized_code:
+        statement = statement.where(ShanghaiAStockPerformance.stock_code == normalized_code)
+
+    statement = statement.order_by(ShanghaiAStockPerformance.stock_code.asc()).limit(limit)
+
+    results = db.exec(statement).all()
+    response: List[ShanghaiAStockPerformanceSummary] = []
+    for perf, stock in results:
+        response.append(
+            ShanghaiAStockPerformanceSummary(
+                stock_code=perf.stock_code,
+                stock_name=stock.name if stock else None,
+                short_name=stock.short_name if stock else None,
+                report_period=perf.report_period,
+                announcement_date=perf.announcement_date,
+                eps=perf.eps,
+                revenue=perf.revenue,
+                revenue_yoy=perf.revenue_yoy,
+                revenue_qoq=perf.revenue_qoq,
+                net_profit=perf.net_profit,
+                net_profit_yoy=perf.net_profit_yoy,
+                net_profit_qoq=perf.net_profit_qoq,
+                bps=perf.bps,
+                roe=perf.roe,
+                operating_cash_flow_ps=perf.operating_cash_flow_ps,
+                gross_margin=perf.gross_margin,
+                industry=perf.industry,
+                created_at=perf.created_at,
+                updated_at=perf.updated_at,
+            )
+        )
+    return response
+
+
+@router.get(
+    "/stocks/{code}/balance-sheets",
+    response_model=List[ShanghaiAStockBalanceSheetRead],
+)
+def list_shanghai_a_stock_balance_sheets(
+    code: str,
+    limit: int = Query(12, ge=1, le=40),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Return stored quarterly balance sheet rows for a stock."""
+    stock = db.get(ShanghaiAStock, code)
+    if not stock:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stock not found")
+    statement = (
+        select(ShanghaiAStockBalanceSheet)
+        .where(ShanghaiAStockBalanceSheet.stock_code == code)
+        .order_by(ShanghaiAStockBalanceSheet.report_period.desc())
+        .limit(limit)
+    )
+    return list(db.exec(statement).all())
+
+
+@router.get(
+    "/stocks/{code}/performances",
+    response_model=List[ShanghaiAStockPerformanceRead],
+)
+def list_shanghai_a_stock_performances(
+    code: str,
+    limit: int = Query(12, ge=1, le=40),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Return stored quarterly performance rows for a stock."""
+    stock = db.get(ShanghaiAStock, code)
+    if not stock:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stock not found")
+    statement = (
+        select(ShanghaiAStockPerformance)
+        .where(ShanghaiAStockPerformance.stock_code == code)
+        .order_by(ShanghaiAStockPerformance.report_period.desc())
+        .limit(limit)
+    )
+    return list(db.exec(statement).all())
+
+
+@router.post(
+    "/financials/collect",
+    response_model=ShanghaiAFinancialCollectResponse,
+)
+def collect_shanghai_a_financials_endpoint(
+    request: ShanghaiAFinancialCollectRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_active_superuser),
+):
+    """Trigger manual quarterly financial data collection for all stocks."""
+    end_period = request.end_period or request.start_period
+    try:
+        summary = collect_shanghai_a_financials(
+            db,
+            request.start_period,
+            end_period,
+            include_balance_sheet=request.include_balance_sheet,
+            include_performance=request.include_performance,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+    return ShanghaiAFinancialCollectResponse(
+        message="Financial datasets collected successfully",
+        quarters_processed=summary.get("quarters_processed", []),
+        balance_sheet_rows=summary.get("balance_sheet_rows", 0),
+        balance_sheet_stocks=summary.get("balance_sheet_stocks", 0),
+        performance_rows=summary.get("performance_rows", 0),
+        performance_stocks=summary.get("performance_stocks", 0),
+    )
 
 
 # ---------------------------------------------------------------------------

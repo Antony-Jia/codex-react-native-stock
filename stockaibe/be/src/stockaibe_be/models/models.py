@@ -171,3 +171,66 @@ class ShanghaiAStockFundFlow(TimestampMixin, table=True):
     outflow: Optional[float] = Field(default=None, description="流出资金（元）")
     net_inflow: Optional[float] = Field(default=None, description="净流入资金（元）")
     amount: Optional[float] = Field(default=None, description="成交额（元）")
+
+class ShanghaiAStockBalanceSheet(TimestampMixin, table=True):
+    """Quarterly balance sheet snapshot for Shanghai A stocks."""
+
+    __tablename__ = "shanghai_a_stock_balance_sheet"
+    __table_args__ = (
+        UniqueConstraint("stock_code", "report_period", name="uq_shanghai_a_balance_sheet"),
+        {"extend_existing": True},
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    stock_code: str = Field(
+        foreign_key="shanghai_a_stocks.code",
+        max_length=12,
+        index=True,
+        description="股票代码",
+    )
+    report_period: dt.date = Field(index=True, description="季度末日期")
+    announcement_date: Optional[dt.date] = Field(default=None, description="公告日期")
+    currency_funds: Optional[float] = Field(default=None, description="资产-货币资金（元）")
+    accounts_receivable: Optional[float] = Field(default=None, description="资产-应收账款（元）")
+    inventory: Optional[float] = Field(default=None, description="资产-存货（元）")
+    total_assets: Optional[float] = Field(default=None, description="资产-总资产（元）")
+    total_assets_yoy: Optional[float] = Field(default=None, description="资产-总资产同比（%）")
+    accounts_payable: Optional[float] = Field(default=None, description="负债-应付账款（元）")
+    advance_receipts: Optional[float] = Field(default=None, description="负债-预收账款（元）")
+    total_liabilities: Optional[float] = Field(default=None, description="负债-总负债（元）")
+    total_liabilities_yoy: Optional[float] = Field(default=None, description="负债-总负债同比（%）")
+    debt_to_asset_ratio: Optional[float] = Field(default=None, description="资产负债率（%）")
+    total_equity: Optional[float] = Field(default=None, description="股东权益合计（元）")
+
+
+class ShanghaiAStockPerformance(TimestampMixin, table=True):
+    """Quarterly performance snapshot for Shanghai A stocks."""
+
+    __tablename__ = "shanghai_a_stock_performance"
+    __table_args__ = (
+        UniqueConstraint("stock_code", "report_period", name="uq_shanghai_a_performance"),
+        {"extend_existing": True},
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    stock_code: str = Field(
+        foreign_key="shanghai_a_stocks.code",
+        max_length=12,
+        index=True,
+        description="股票代码",
+    )
+    report_period: dt.date = Field(index=True, description="季度末日期")
+    announcement_date: Optional[dt.date] = Field(default=None, description="公告日期")
+    eps: Optional[float] = Field(default=None, description="每股收益（元）")
+    revenue: Optional[float] = Field(default=None, description="营业总收入（元）")
+    revenue_yoy: Optional[float] = Field(default=None, description="营业总收入-同比增长（%）")
+    revenue_qoq: Optional[float] = Field(default=None, description="营业总收入-季度环比增长（%）")
+    net_profit: Optional[float] = Field(default=None, description="净利润（元）")
+    net_profit_yoy: Optional[float] = Field(default=None, description="净利润-同比增长（%）")
+    net_profit_qoq: Optional[float] = Field(default=None, description="净利润-季度环比增长（%）")
+    bps: Optional[float] = Field(default=None, description="每股净资产（元）")
+    roe: Optional[float] = Field(default=None, description="净资产收益率（%）")
+    operating_cash_flow_ps: Optional[float] = Field(default=None, description="每股经营现金流量（元）")
+    gross_margin: Optional[float] = Field(default=None, description="销售毛利率（%）")
+    industry: Optional[str] = Field(default=None, max_length=100, description="所属行业")
+

@@ -250,3 +250,68 @@ export interface ShanghaiAStockInfo {
   created_at: string;
   updated_at: string;
 }
+
+export interface ShanghaiAStockBalanceSheet {
+  stock_code: string;
+  report_period: string;
+  announcement_date?: string;
+  currency_funds?: number;
+  accounts_receivable?: number;
+  inventory?: number;
+  total_assets?: number;
+  total_assets_yoy?: number;
+  accounts_payable?: number;
+  advance_receipts?: number;
+  total_liabilities?: number;
+  total_liabilities_yoy?: number;
+  debt_to_asset_ratio?: number;
+  total_equity?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShanghaiAStockBalanceSheetSummary extends ShanghaiAStockBalanceSheet {
+  stock_name?: string;
+  short_name?: string;
+}
+
+export interface ShanghaiAStockPerformance {
+  stock_code: string;
+  report_period: string;
+  announcement_date?: string;
+  eps?: number;
+  revenue?: number;
+  revenue_yoy?: number;
+  revenue_qoq?: number;
+  net_profit?: number;
+  net_profit_yoy?: number;
+  net_profit_qoq?: number;
+  bps?: number;
+  roe?: number;
+  operating_cash_flow_ps?: number;
+  gross_margin?: number;
+  industry?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShanghaiAStockPerformanceSummary extends ShanghaiAStockPerformance {
+  stock_name?: string;
+  short_name?: string;
+}
+
+export interface ShanghaiAFinancialCollectRequest {
+  start_period: string;
+  end_period?: string;
+  include_balance_sheet?: boolean;
+  include_performance?: boolean;
+}
+
+export interface ShanghaiAFinancialCollectResponse {
+  message: string;
+  quarters_processed: string[];
+  balance_sheet_rows: number;
+  balance_sheet_stocks: number;
+  performance_rows: number;
+  performance_stocks: number;
+}

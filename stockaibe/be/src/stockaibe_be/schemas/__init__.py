@@ -30,6 +30,12 @@ from .schemas import (
     ShanghaiAStockFundFlowRead,
     ShanghaiAManualUpdateRequest,
     ShanghaiAManualUpdateResponse,
+    ShanghaiAStockBalanceSheetRead,
+    ShanghaiAStockPerformanceRead,
+    ShanghaiAStockBalanceSheetSummary,
+    ShanghaiAStockPerformanceSummary,
+    ShanghaiAFinancialCollectRequest,
+    ShanghaiAFinancialCollectResponse,
 )
 
 __all__ = [
@@ -62,4 +68,10 @@ __all__ = [
     "ShanghaiAStockFundFlowRead",
     "ShanghaiAManualUpdateRequest",
     "ShanghaiAManualUpdateResponse",
+    "ShanghaiAStockBalanceSheetRead",
+    "ShanghaiAStockPerformanceRead",
+    "ShanghaiAStockBalanceSheetSummary",
+    "ShanghaiAStockPerformanceSummary",
+    "ShanghaiAFinancialCollectRequest",
+    "ShanghaiAFinancialCollectResponse",
 ]

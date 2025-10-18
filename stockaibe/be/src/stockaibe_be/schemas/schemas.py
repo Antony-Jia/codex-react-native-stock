@@ -227,6 +227,59 @@ class ShanghaiAStockFundFlowRead(BaseModel):
     amount: Optional[float] = None
 
 
+class ShanghaiAStockBalanceSheetRead(BaseModel):
+    stock_code: str
+    report_period: dt.date
+    announcement_date: Optional[dt.date] = None
+    currency_funds: Optional[float] = None
+    accounts_receivable: Optional[float] = None
+    inventory: Optional[float] = None
+    total_assets: Optional[float] = None
+    total_assets_yoy: Optional[float] = None
+    accounts_payable: Optional[float] = None
+    advance_receipts: Optional[float] = None
+    total_liabilities: Optional[float] = None
+    total_liabilities_yoy: Optional[float] = None
+    debt_to_asset_ratio: Optional[float] = None
+    total_equity: Optional[float] = None
+    created_at: dt.datetime
+    updated_at: dt.datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ShanghaiAStockBalanceSheetSummary(ShanghaiAStockBalanceSheetRead):
+    stock_name: Optional[str] = None
+    short_name: Optional[str] = None
+
+
+class ShanghaiAStockPerformanceRead(BaseModel):
+    stock_code: str
+    report_period: dt.date
+    announcement_date: Optional[dt.date] = None
+    eps: Optional[float] = None
+    revenue: Optional[float] = None
+    revenue_yoy: Optional[float] = None
+    revenue_qoq: Optional[float] = None
+    net_profit: Optional[float] = None
+    net_profit_yoy: Optional[float] = None
+    net_profit_qoq: Optional[float] = None
+    bps: Optional[float] = None
+    roe: Optional[float] = None
+    operating_cash_flow_ps: Optional[float] = None
+    gross_margin: Optional[float] = None
+    industry: Optional[str] = None
+    created_at: dt.datetime
+    updated_at: dt.datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ShanghaiAStockPerformanceSummary(ShanghaiAStockPerformanceRead):
+    stock_name: Optional[str] = None
+    short_name: Optional[str] = None
+
+
 class ShanghaiAManualUpdateRequest(BaseModel):
     trade_date: Optional[dt.date] = None
     stock_codes: Optional[List[str]] = None
@@ -235,3 +288,19 @@ class ShanghaiAManualUpdateRequest(BaseModel):
 class ShanghaiAManualUpdateResponse(BaseModel):
     message: str
     summary: Dict[str, int]
+
+
+class ShanghaiAFinancialCollectRequest(BaseModel):
+    start_period: dt.date
+    end_period: Optional[dt.date] = None
+    include_balance_sheet: bool = True
+    include_performance: bool = True
+
+
+class ShanghaiAFinancialCollectResponse(BaseModel):
+    message: str
+    quarters_processed: List[str]
+    balance_sheet_rows: int
+    balance_sheet_stocks: int
+    performance_rows: int
+    performance_stocks: int
