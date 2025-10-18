@@ -7,6 +7,7 @@ from .schemas import (
     MetricSeriesPoint,
     MetricsCurrentResponse,
     MetricsSeriesResponse,
+    PaginatedResponse,
     QuotaBase,
     QuotaCreate,
     QuotaRead,
@@ -39,6 +40,7 @@ from .schemas import (
 )
 
 __all__ = [
+    "PaginatedResponse",
     "Token",
     "TokenPayload",
     "UserBase",

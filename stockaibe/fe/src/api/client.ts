@@ -4,34 +4,35 @@
 
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import type {
-  User,
+  FuncStats,
   LoginRequest,
-  RegisterRequest,
-  Token,
+  MetricsCurrent,
+  MetricsSeriesResponse,
+  PaginatedResponse,
   Quota,
   QuotaCreate,
   QuotaUpdate,
-  MetricsCurrent,
-  MetricsSeriesResponse,
-  Trace,
-  FuncStats,
+  RegisterRequest,
+  ShanghaiAFinancialCollectRequest,
+  ShanghaiAFinancialCollectResponse,
+  ShanghaiAManualUpdateRequest,
+  ShanghaiAManualUpdateResponse,
+  ShanghaiAMarketFundFlow,
+  ShanghaiAStock,
+  ShanghaiAStockBalanceSheet,
+  ShanghaiAStockBalanceSheetSummary,
+  ShanghaiAStockCreate,
+  ShanghaiAStockFundFlow,
+  ShanghaiAStockInfo,
+  ShanghaiAStockPerformance,
+  ShanghaiAStockPerformanceSummary,
+  ShanghaiAStockUpdate,
   Task,
   TaskCreate,
   TaskTrigger,
-  ShanghaiAStock,
-  ShanghaiAStockCreate,
-  ShanghaiAStockUpdate,
-  ShanghaiAMarketFundFlow,
-  ShanghaiAStockFundFlow,
-  ShanghaiAManualUpdateRequest,
-  ShanghaiAManualUpdateResponse,
-  ShanghaiAStockInfo,
-  ShanghaiAStockBalanceSheet,
-  ShanghaiAStockPerformance,
-  ShanghaiAStockBalanceSheetSummary,
-  ShanghaiAStockPerformanceSummary,
-  ShanghaiAFinancialCollectRequest,
-  ShanghaiAFinancialCollectResponse,
+  Token,
+  Trace,
+  User,
 } from '../types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
@@ -247,10 +248,13 @@ class ApiClient {
     start_period?: string;
     end_period?: string;
     announcement_date?: string;
+    start_announcement_date?: string;
+    end_announcement_date?: string;
     stock_code?: string;
-    limit?: number;
-  }): Promise<ShanghaiAStockBalanceSheetSummary[]> {
-    const response = await this.client.get<ShanghaiAStockBalanceSheetSummary[]>('/shanghai-a/financials/balance-sheets', {
+    page?: number;
+    page_size?: number;
+  }): Promise<PaginatedResponse<ShanghaiAStockBalanceSheetSummary>> {
+    const response = await this.client.get<PaginatedResponse<ShanghaiAStockBalanceSheetSummary>>('/shanghai-a/financials/balance-sheets', {
       params,
     });
     return response.data;
@@ -272,10 +276,13 @@ class ApiClient {
     start_period?: string;
     end_period?: string;
     announcement_date?: string;
+    start_announcement_date?: string;
+    end_announcement_date?: string;
     stock_code?: string;
-    limit?: number;
-  }): Promise<ShanghaiAStockPerformanceSummary[]> {
-    const response = await this.client.get<ShanghaiAStockPerformanceSummary[]>('/shanghai-a/financials/performances', {
+    page?: number;
+    page_size?: number;
+  }): Promise<PaginatedResponse<ShanghaiAStockPerformanceSummary>> {
+    const response = await this.client.get<PaginatedResponse<ShanghaiAStockPerformanceSummary>>('/shanghai-a/financials/performances', {
       params,
     });
     return response.data;

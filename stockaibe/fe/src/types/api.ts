@@ -2,6 +2,14 @@
  * API types matching backend schemas
  */
 
+// Generic paginated response
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 // Auth types
 export interface User {
   id: number;

@@ -1,9 +1,19 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Dict, List, Optional
+from typing import Dict, Generic, List, Optional, TypeVar
 
 from pydantic import BaseModel, Field
+
+T = TypeVar('T')
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    """通用分页响应"""
+    items: List[T]
+    total: int
+    page: int = 1
+    page_size: int = 20
 
 
 class Token(BaseModel):

@@ -83,12 +83,16 @@ const ShanghaiA: React.FC = () => {
   const [balanceSheets, setBalanceSheets] = useState<ShanghaiAStockBalanceSheetSummary[]>([]);
   const [balanceAnnouncementRange, setBalanceAnnouncementRange] = useState<RangeValue<Dayjs>>(null);
   const [balanceSheetCode, setBalanceSheetCode] = useState<string>();
+  const [balanceSheetPage, setBalanceSheetPage] = useState(1);
+  const [balanceSheetTotal, setBalanceSheetTotal] = useState(0);
 
   // Performance state
   const [performanceLoading, setPerformanceLoading] = useState(false);
   const [performances, setPerformances] = useState<ShanghaiAStockPerformanceSummary[]>([]);
   const [performanceAnnouncementRange, setPerformanceAnnouncementRange] = useState<RangeValue<Dayjs>>(null);
   const [performanceCode, setPerformanceCode] = useState<string>();
+  const [performancePage, setPerformancePage] = useState(1);
+  const [performanceTotal, setPerformanceTotal] = useState(0);
 
   // Financial collect state
   const [balanceCollectVisible, setBalanceCollectVisible] = useState(false);
@@ -217,8 +221,12 @@ const ShanghaiA: React.FC = () => {
         start_announcement_date?: string;
         end_announcement_date?: string;
         stock_code?: string;
-        limit?: number;
-      } = {};
+        page?: number;
+        page_size?: number;
+      } = {
+        page: balanceSheetPage,
+        page_size: 20,
+      };
       const startParam = formatDateParam(announcementStart);
       const endParam = formatDateParam(announcementEnd);
       if (startParam) {
@@ -233,12 +241,9 @@ const ShanghaiA: React.FC = () => {
           params.stock_code = normalized;
         }
       }
-      // limit represents number of stocks, not total rows
-      if (!balanceSheetCode) {
-        params.limit = 500;
-      }
-      const data = await apiClient.getShanghaiABalanceSheetSummary(params);
-      setBalanceSheets(data);
+      const response = await apiClient.getShanghaiABalanceSheetSummary(params);
+      setBalanceSheets(response.items);
+      setBalanceSheetTotal(response.total);
     } catch (error) {
       console.error('Failed to load balance sheets:', error);
       message.error('加载资产负债表失败');
@@ -261,8 +266,12 @@ const ShanghaiA: React.FC = () => {
         start_announcement_date?: string;
         end_announcement_date?: string;
         stock_code?: string;
-        limit?: number;
-      } = {};
+        page?: number;
+        page_size?: number;
+      } = {
+        page: performancePage,
+        page_size: 20,
+      };
       const startParam = formatDateParam(announcementStart);
       const endParam = formatDateParam(announcementEnd);
       if (startParam) {
@@ -277,12 +286,9 @@ const ShanghaiA: React.FC = () => {
           params.stock_code = normalized;
         }
       }
-      // limit represents number of stocks, not total rows
-      if (!performanceCode) {
-        params.limit = 500;
-      }
-      const data = await apiClient.getShanghaiAPerformanceSummary(params);
-      setPerformances(data);
+      const response = await apiClient.getShanghaiAPerformanceSummary(params);
+      setPerformances(response.items);
+      setPerformanceTotal(response.total);
     } catch (error) {
       console.error('Failed to load performances:', error);
       message.error('加载业绩快报失败');
@@ -425,6 +431,20 @@ const ShanghaiA: React.FC = () => {
     loadStocks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onlyActive, stockKeyword]);
+
+  useEffect(() => {
+    if (activeTab === 'balanceSheet') {
+      void loadBalanceSheets();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [balanceSheetPage]);
+
+  useEffect(() => {
+    if (activeTab === 'performance') {
+      void loadPerformances();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [performancePage]);
 
   const handleViewDetails = async (stock: ShanghaiAStock) => {
     setDetailStock(stock);
@@ -1103,7 +1123,16 @@ const ShanghaiA: React.FC = () => {
                 dataSource={balanceSheetTreeData}
                 loading={balanceSheetLoading}
                 rowKey={(record) => record.key}
-                pagination={{ pageSize: 20 }}
+                pagination={{
+                  current: balanceSheetPage,
+                  pageSize: 20,
+                  total: balanceSheetTotal,
+                  showSizeChanger: false,
+                  showTotal: (total) => `共 ${total} 个股票`,
+                  onChange: (page) => {
+                    setBalanceSheetPage(page);
+                  },
+                }}
                 expandable={{ expandRowByClick: true }}
                 scroll={{ x: 1800 }}
               />
@@ -1222,7 +1251,16 @@ const ShanghaiA: React.FC = () => {
                 dataSource={performanceTreeData}
                 loading={performanceLoading}
                 rowKey={(record) => record.key}
-                pagination={{ pageSize: 20 }}
+                pagination={{
+                  current: performancePage,
+                  pageSize: 20,
+                  total: performanceTotal,
+                  showSizeChanger: false,
+                  showTotal: (total) => `共 ${total} 个股票`,
+                  onChange: (page) => {
+                    setPerformancePage(page);
+                  },
+                }}
                 expandable={{ expandRowByClick: true }}
                 scroll={{ x: 1800 }}
               />

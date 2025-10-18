@@ -21,20 +21,21 @@ from ..models import (
     User,
 )
 from ..schemas import (
+    PaginatedResponse,
+    ShanghaiAFinancialCollectRequest,
+    ShanghaiAFinancialCollectResponse,
     ShanghaiAManualUpdateRequest,
     ShanghaiAManualUpdateResponse,
     ShanghaiAMarketFundFlowRead,
+    ShanghaiAStockBalanceSheetRead,
+    ShanghaiAStockBalanceSheetSummary,
     ShanghaiAStockCreate,
     ShanghaiAStockFundFlowRead,
     ShanghaiAStockInfoRead,
+    ShanghaiAStockPerformanceRead,
+    ShanghaiAStockPerformanceSummary,
     ShanghaiAStockRead,
     ShanghaiAStockUpdate,
-    ShanghaiAStockBalanceSheetRead,
-    ShanghaiAStockPerformanceRead,
-    ShanghaiAStockBalanceSheetSummary,
-    ShanghaiAStockPerformanceSummary,
-    ShanghaiAFinancialCollectRequest,
-    ShanghaiAFinancialCollectResponse,
 )
 from ..tasks.aksharetest import (
     fetch_stock_individual_info,
@@ -264,7 +265,7 @@ def sync_shanghai_a_stock_info(
 
 @router.get(
     "/financials/balance-sheets",
-    response_model=List[ShanghaiAStockBalanceSheetSummary],
+    response_model=PaginatedResponse[ShanghaiAStockBalanceSheetSummary],
 )
 def list_shanghai_a_balance_sheet_summary(
     report_period: Optional[str] = Query(None, description="Quarter end date (deprecated, use start_period)"),
@@ -274,7 +275,8 @@ def list_shanghai_a_balance_sheet_summary(
     start_announcement_date: Optional[str] = Query(None, description="Announcement start date"),
     end_announcement_date: Optional[str] = Query(None, description="Announcement end date"),
     stock_code: Optional[str] = Query(None, description="Filter by stock code"),
-    limit: int = Query(500, ge=1, le=2000),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -304,7 +306,7 @@ def list_shanghai_a_balance_sheet_summary(
 
     normalized_code = stock_code.strip() if stock_code else None
 
-    # Step 1: Get distinct stock codes that match the criteria (apply limit to stock count)
+    # Step 1: Build base query for stock codes
     stock_code_statement = select(ShanghaiAStockBalanceSheet.stock_code).distinct()
     
     if target_announcement is not None:
@@ -320,16 +322,22 @@ def list_shanghai_a_balance_sheet_summary(
     if normalized_code:
         stock_code_statement = stock_code_statement.where(ShanghaiAStockBalanceSheet.stock_code == normalized_code)
     
-    stock_code_statement = stock_code_statement.order_by(ShanghaiAStockBalanceSheet.stock_code.asc())
+    # Get total count of distinct stocks
+    from sqlmodel import func
+    total_count_statement = select(func.count()).select_from(
+        stock_code_statement.subquery()
+    )
+    total = db.exec(total_count_statement).one()
     
-    # Apply limit to number of stocks (not total rows)
-    if not normalized_code:
-        stock_code_statement = stock_code_statement.limit(limit)
+    # Apply pagination
+    stock_code_statement = stock_code_statement.order_by(ShanghaiAStockBalanceSheet.stock_code.asc())
+    offset = (page - 1) * page_size
+    stock_code_statement = stock_code_statement.offset(offset).limit(page_size)
     
     stock_codes = list(db.exec(stock_code_statement).all())
     
     if not stock_codes:
-        return []
+        return PaginatedResponse(items=[], total=total, page=page, page_size=page_size)
     
     # Step 2: Get all records for these stocks
     statement = (
@@ -380,12 +388,12 @@ def list_shanghai_a_balance_sheet_summary(
                 updated_at=sheet.updated_at,
             )
         )
-    return response
+    return PaginatedResponse(items=response, total=total, page=page, page_size=page_size)
 
 
 @router.get(
     "/financials/performances",
-    response_model=List[ShanghaiAStockPerformanceSummary],
+    response_model=PaginatedResponse[ShanghaiAStockPerformanceSummary],
 )
 def list_shanghai_a_performance_summary(
     report_period: Optional[str] = Query(None, description="Quarter end date (deprecated, use start_period)"),
@@ -395,7 +403,8 @@ def list_shanghai_a_performance_summary(
     start_announcement_date: Optional[str] = Query(None, description="Announcement start date"),
     end_announcement_date: Optional[str] = Query(None, description="Announcement end date"),
     stock_code: Optional[str] = Query(None, description="Filter by stock code"),
-    limit: int = Query(500, ge=1, le=2000),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -425,7 +434,7 @@ def list_shanghai_a_performance_summary(
 
     normalized_code = stock_code.strip() if stock_code else None
 
-    # Step 1: Get distinct stock codes that match the criteria (apply limit to stock count)
+    # Step 1: Build base query for stock codes
     stock_code_statement = select(ShanghaiAStockPerformance.stock_code).distinct()
     
     if target_announcement is not None:
@@ -441,16 +450,22 @@ def list_shanghai_a_performance_summary(
     if normalized_code:
         stock_code_statement = stock_code_statement.where(ShanghaiAStockPerformance.stock_code == normalized_code)
     
-    stock_code_statement = stock_code_statement.order_by(ShanghaiAStockPerformance.stock_code.asc())
+    # Get total count of distinct stocks
+    from sqlmodel import func
+    total_count_statement = select(func.count()).select_from(
+        stock_code_statement.subquery()
+    )
+    total = db.exec(total_count_statement).one()
     
-    # Apply limit to number of stocks (not total rows)
-    if not normalized_code:
-        stock_code_statement = stock_code_statement.limit(limit)
+    # Apply pagination
+    stock_code_statement = stock_code_statement.order_by(ShanghaiAStockPerformance.stock_code.asc())
+    offset = (page - 1) * page_size
+    stock_code_statement = stock_code_statement.offset(offset).limit(page_size)
     
     stock_codes = list(db.exec(stock_code_statement).all())
     
     if not stock_codes:
-        return []
+        return PaginatedResponse(items=[], total=total, page=page, page_size=page_size)
     
     # Step 2: Get all records for these stocks
     statement = (
@@ -502,7 +517,7 @@ def list_shanghai_a_performance_summary(
                 updated_at=perf.updated_at,
             )
         )
-    return response
+    return PaginatedResponse(items=response, total=total, page=page, page_size=page_size)
 
 
 @router.get(
