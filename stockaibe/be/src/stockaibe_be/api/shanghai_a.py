@@ -302,28 +302,43 @@ def list_shanghai_a_balance_sheet_summary(
             detail="end_announcement_date must be greater than or equal to start_announcement_date",
         )
 
-    if (
-        target_start is None
-        and target_end is None
-        and target_announcement is None
-        and target_announcement_start is None
-        and target_announcement_end is None
-    ):
-        target_announcement = db.exec(
-            select(ShanghaiAStockBalanceSheet.announcement_date)
-            .order_by(ShanghaiAStockBalanceSheet.announcement_date.desc())
-            .limit(1)
-        ).first()
-        if target_announcement is None:
-            return []
+    normalized_code = stock_code.strip() if stock_code else None
 
+    # Step 1: Get distinct stock codes that match the criteria (apply limit to stock count)
+    stock_code_statement = select(ShanghaiAStockBalanceSheet.stock_code).distinct()
+    
+    if target_announcement is not None:
+        stock_code_statement = stock_code_statement.where(ShanghaiAStockBalanceSheet.announcement_date == target_announcement)
+    if target_announcement_start is not None:
+        stock_code_statement = stock_code_statement.where(ShanghaiAStockBalanceSheet.announcement_date >= target_announcement_start)
+    if target_announcement_end is not None:
+        stock_code_statement = stock_code_statement.where(ShanghaiAStockBalanceSheet.announcement_date <= target_announcement_end)
+    if target_start is not None:
+        stock_code_statement = stock_code_statement.where(ShanghaiAStockBalanceSheet.report_period >= target_start)
+    if target_end is not None:
+        stock_code_statement = stock_code_statement.where(ShanghaiAStockBalanceSheet.report_period <= target_end)
+    if normalized_code:
+        stock_code_statement = stock_code_statement.where(ShanghaiAStockBalanceSheet.stock_code == normalized_code)
+    
+    stock_code_statement = stock_code_statement.order_by(ShanghaiAStockBalanceSheet.stock_code.asc())
+    
+    # Apply limit to number of stocks (not total rows)
+    if not normalized_code:
+        stock_code_statement = stock_code_statement.limit(limit)
+    
+    stock_codes = list(db.exec(stock_code_statement).all())
+    
+    if not stock_codes:
+        return []
+    
+    # Step 2: Get all records for these stocks
     statement = (
         select(ShanghaiAStockBalanceSheet, ShanghaiAStock)
         .join(ShanghaiAStock, ShanghaiAStockBalanceSheet.stock_code == ShanghaiAStock.code, isouter=True)
+        .where(ShanghaiAStockBalanceSheet.stock_code.in_(stock_codes))
     )
-
-    normalized_code = stock_code.strip() if stock_code else None
-
+    
+    # Apply the same date filters
     if target_announcement is not None:
         statement = statement.where(ShanghaiAStockBalanceSheet.announcement_date == target_announcement)
     if target_announcement_start is not None:
@@ -334,14 +349,12 @@ def list_shanghai_a_balance_sheet_summary(
         statement = statement.where(ShanghaiAStockBalanceSheet.report_period >= target_start)
     if target_end is not None:
         statement = statement.where(ShanghaiAStockBalanceSheet.report_period <= target_end)
-    if normalized_code:
-        statement = statement.where(ShanghaiAStockBalanceSheet.stock_code == normalized_code)
-
+    
     statement = statement.order_by(
         ShanghaiAStockBalanceSheet.stock_code.asc(),
         ShanghaiAStockBalanceSheet.report_period.desc()
-    ).limit(limit)
-
+    )
+    
     results = db.exec(statement).all()
     response: List[ShanghaiAStockBalanceSheetSummary] = []
     for sheet, stock in results:
@@ -410,28 +423,43 @@ def list_shanghai_a_performance_summary(
             detail="end_announcement_date must be greater than or equal to start_announcement_date",
         )
 
-    if (
-        target_start is None
-        and target_end is None
-        and target_announcement is None
-        and target_announcement_start is None
-        and target_announcement_end is None
-    ):
-        target_announcement = db.exec(
-            select(ShanghaiAStockPerformance.announcement_date)
-            .order_by(ShanghaiAStockPerformance.announcement_date.desc())
-            .limit(1)
-        ).first()
-        if target_announcement is None:
-            return []
+    normalized_code = stock_code.strip() if stock_code else None
 
+    # Step 1: Get distinct stock codes that match the criteria (apply limit to stock count)
+    stock_code_statement = select(ShanghaiAStockPerformance.stock_code).distinct()
+    
+    if target_announcement is not None:
+        stock_code_statement = stock_code_statement.where(ShanghaiAStockPerformance.announcement_date == target_announcement)
+    if target_announcement_start is not None:
+        stock_code_statement = stock_code_statement.where(ShanghaiAStockPerformance.announcement_date >= target_announcement_start)
+    if target_announcement_end is not None:
+        stock_code_statement = stock_code_statement.where(ShanghaiAStockPerformance.announcement_date <= target_announcement_end)
+    if target_start is not None:
+        stock_code_statement = stock_code_statement.where(ShanghaiAStockPerformance.report_period >= target_start)
+    if target_end is not None:
+        stock_code_statement = stock_code_statement.where(ShanghaiAStockPerformance.report_period <= target_end)
+    if normalized_code:
+        stock_code_statement = stock_code_statement.where(ShanghaiAStockPerformance.stock_code == normalized_code)
+    
+    stock_code_statement = stock_code_statement.order_by(ShanghaiAStockPerformance.stock_code.asc())
+    
+    # Apply limit to number of stocks (not total rows)
+    if not normalized_code:
+        stock_code_statement = stock_code_statement.limit(limit)
+    
+    stock_codes = list(db.exec(stock_code_statement).all())
+    
+    if not stock_codes:
+        return []
+    
+    # Step 2: Get all records for these stocks
     statement = (
         select(ShanghaiAStockPerformance, ShanghaiAStock)
         .join(ShanghaiAStock, ShanghaiAStockPerformance.stock_code == ShanghaiAStock.code, isouter=True)
+        .where(ShanghaiAStockPerformance.stock_code.in_(stock_codes))
     )
-
-    normalized_code = stock_code.strip() if stock_code else None
-
+    
+    # Apply the same date filters
     if target_announcement is not None:
         statement = statement.where(ShanghaiAStockPerformance.announcement_date == target_announcement)
     if target_announcement_start is not None:
@@ -442,14 +470,12 @@ def list_shanghai_a_performance_summary(
         statement = statement.where(ShanghaiAStockPerformance.report_period >= target_start)
     if target_end is not None:
         statement = statement.where(ShanghaiAStockPerformance.report_period <= target_end)
-    if normalized_code:
-        statement = statement.where(ShanghaiAStockPerformance.stock_code == normalized_code)
-
+    
     statement = statement.order_by(
         ShanghaiAStockPerformance.stock_code.asc(),
         ShanghaiAStockPerformance.report_period.desc()
-    ).limit(limit)
-
+    )
+    
     results = db.exec(statement).all()
     response: List[ShanghaiAStockPerformanceSummary] = []
     for perf, stock in results:

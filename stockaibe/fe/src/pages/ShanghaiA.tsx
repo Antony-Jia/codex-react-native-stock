@@ -218,7 +218,7 @@ const ShanghaiA: React.FC = () => {
         end_announcement_date?: string;
         stock_code?: string;
         limit?: number;
-      } = { limit: 100 };
+      } = {};
       const startParam = formatDateParam(announcementStart);
       const endParam = formatDateParam(announcementEnd);
       if (startParam) {
@@ -232,6 +232,10 @@ const ShanghaiA: React.FC = () => {
         if (normalized) {
           params.stock_code = normalized;
         }
+      }
+      // limit represents number of stocks, not total rows
+      if (!balanceSheetCode) {
+        params.limit = 500;
       }
       const data = await apiClient.getShanghaiABalanceSheetSummary(params);
       setBalanceSheets(data);
@@ -258,7 +262,7 @@ const ShanghaiA: React.FC = () => {
         end_announcement_date?: string;
         stock_code?: string;
         limit?: number;
-      } = { limit: 100 };
+      } = {};
       const startParam = formatDateParam(announcementStart);
       const endParam = formatDateParam(announcementEnd);
       if (startParam) {
@@ -272,6 +276,10 @@ const ShanghaiA: React.FC = () => {
         if (normalized) {
           params.stock_code = normalized;
         }
+      }
+      // limit represents number of stocks, not total rows
+      if (!performanceCode) {
+        params.limit = 500;
       }
       const data = await apiClient.getShanghaiAPerformanceSummary(params);
       setPerformances(data);
