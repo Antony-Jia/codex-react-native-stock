@@ -11,7 +11,7 @@ import akshare as ak
 
 # stock_market_fund_flow_df = ak.stock_market_fund_flow()
 # print(stock_market_fund_flow_df)
-
+# stock_market_fund_flow_df.to_csv("stock_market_fund_flow.csv", index=False)
 # -----------------------------------------------------------------------------------------------------
 
 # 个股资金流
@@ -24,8 +24,9 @@ import akshare as ak
 #             序号    股票代码  股票简称     最新价      涨跌幅     换手率   流入资金   流出资金         净额     成交额
 # 0        1  301099  雅创电子   49.34   19.99%  13.23%  2.76亿  2.85亿   -961.51万   5.61亿
 
-stock_fund_flow_individual_df = ak.stock_fund_flow_individual(symbol="即时")
-print(stock_fund_flow_individual_df)
+# stock_fund_flow_individual_df = ak.stock_fund_flow_individual(symbol="即时")
+# print(stock_fund_flow_individual_df)
+# stock_fund_flow_individual_df.to_csv("stock_fund_flow_individual.csv", index=False)
 
 # -----------------------------------------------------------------------------------------------------
 # 接口: stock_xjll_em
@@ -57,9 +58,9 @@ print(stock_fund_flow_individual_df)
 #             序号    股票代码   股票简称       资产-货币资金       资产-应收账款         资产-存货        资产-总资产   资产-总资产同比       负债-应付账款     负债-预收账款        负债-总负债                                                           
 #负债-总负债同比       资产负债率        股东权益合计        公告日期
 # 0        1  601026   道生天合  6.088989e+08  1.305857e+09  3.127690e+08  3.832308e+09  21.640034  4.044546e+08         NaN  1.914938e+09  33.908043   49.968265  1.917370e+09  2025-10-13      
-# stock_zcfz_em_df = ak.stock_zcfz_em(date="20250630")
-# print(stock_zcfz_em_df)
-
+stock_zcfz_em_df = ak.stock_zcfz_em(date="20250630")
+print(stock_zcfz_em_df)
+stock_zcfz_em_df.to_csv("stock_zcfz_em.csv", index=False)
 
 # -----------------------------------------------------------------------------------------------------
 
@@ -75,8 +76,9 @@ print(stock_fund_flow_individual_df)
 #             序号    股票代码   股票简称     净现金流-净现金流   净现金流-同比增长  经营性现金流-现金流量净额  经营性现金流-净现金流占比  投资性现金流-现金流量净额  投资性现金流-净现金流占比  融资性现金流-现金流量净额  融资性现金流-净现金流占比        公告日期
 # 0        1  601026   道生天合 -2.343372e+08 -196.593490  -2.461727e+08    -105.050639  -1.019870e+07      -4.352148   2.205098e+07     2.883807e+07      12.206254  2025-10-13
 
-# stock_share_change_cninfo_df = ak.stock_share_change_cninfo(symbol="002594", start_date="20201227", end_date="20251014")
-# print(stock_share_change_cninfo_df)
+stock_share_change_cninfo_df = ak.stock_share_change_cninfo(symbol="002594", start_date="20201227", end_date="20251014")
+print(stock_share_change_cninfo_df)
+stock_share_change_cninfo_df.to_csv("stock_share_change_cninfo.csv", index=False)
 
 # -----------------------------------------------------------------------------------------------------
 
@@ -91,8 +93,9 @@ print(stock_fund_flow_individual_df)
 # 净资产收益率  每股经营现金流量      销售毛利率    所处行业      最新公告日期
 # 0        1  603887   城地香江  0.070  5.580482e+08   -1.671591      -52.2553  32634689.88  -56.930000    104.8519   6.928400    0.95  0.052702  22.975451   互联网服务  2025-06-30
 
-# stock_yjbb_em_df = ak.stock_yjbb_em(date="20220331")
-# print(stock_yjbb_em_df)
+stock_yjbb_em_df = ak.stock_yjbb_em(date="20220331")
+print(stock_yjbb_em_df)
+stock_yjbb_em_df.to_csv("stock_yjbb_em.csv", index=False)
 
 # -----------------------------------------------------------------------------------------------------
 # 接口: stock_news_em
@@ -105,8 +108,9 @@ print(stock_fund_flow_individual_df)
 #             关键词                                       新闻标题                                               新闻内容                 发布时间          文章来源
 #               新闻链接
 # 0   603777                         来伊份控股股东爱屋企管减持668万股  来伊份（603777）控股股东爱屋企管于2025年9月24日至2025年9月30日通过集中竞...  2025-09-30 18:42:11           财中社  http://finance.eastmoney.com/a/202509303527579...
-# stock_news_em_df = ak.stock_news_em(symbol="603777")
-# print(stock_news_em_df)
+stock_news_em_df = ak.stock_news_em(symbol="603777")
+print(stock_news_em_df)
+stock_news_em_df.to_csv("stock_news_em.csv", index=False)
 
 # -----------------------------------------------------------------------------------------------------
 # 接口: stock_hsgt_hold_stock_em
@@ -132,8 +136,9 @@ print(stock_fund_flow_individual_df)
 # example:
 # 序号      代码    简称  事件类型                                               具体事项         交易日
 # 0    1  000669  ST金鸿  资产重组  公司于近日收到新能国际告知函,获悉北京市第一中级人民法院将于2023年8月3日10时至202...  2023-08-08
-# stock_gsrl_gsdt_em_df = ak.stock_gsrl_gsdt_em(date="20251014")
-# print(stock_gsrl_gsdt_em_df)
+stock_gsrl_gsdt_em_df = ak.stock_gsrl_gsdt_em(date="20251014")
+print(stock_gsrl_gsdt_em_df)
+stock_gsrl_gsdt_em_df.to_csv("stock_gsrl_gsdt_em.csv", index=False)
 
 # -----------------------------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------------------------

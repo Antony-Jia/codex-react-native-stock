@@ -37,10 +37,27 @@ def _to_float(value: object) -> Optional[float]:
         if not cleaned or cleaned in {"-", "--"}:
             return None
         cleaned = cleaned.replace(",", "")
+        cleaned = cleaned.lstrip("+")
+
+        multiplier = 1.0
+        unit_map = [
+            ("万亿", 1e12),
+            ("亿元", 1e8),
+            ("亿", 1e8),
+            ("萬元", 1e4),  # Traditional character fallback
+            ("万元", 1e4),
+            ("万", 1e4),
+            ("元", 1.0),
+        ]
+        for suffix, factor in unit_map:
+            if cleaned.endswith(suffix):
+                cleaned = cleaned[: -len(suffix)].strip()
+                multiplier = factor
+                break
         if cleaned.endswith("%"):
             cleaned = cleaned[:-1].strip()
         try:
-            return float(cleaned)
+            return float(cleaned) * multiplier
         except ValueError:
             return None
     return None
@@ -94,9 +111,13 @@ def _upsert_market_fund_flow(
         record = ShanghaiAMarketFundFlow(trade_date=trade_date)
         session.add(record)
 
-    record.shanghai_close = _to_float(payload.get("上证-收盘"))
+    record.shanghai_close = _to_float(
+        payload.get("上证-收盘价") or payload.get("上证-收盘")
+    )
     record.shanghai_pct_change = _to_percent(payload.get("上证-涨跌幅"))
-    record.shenzhen_close = _to_float(payload.get("深证-收盘"))
+    record.shenzhen_close = _to_float(
+        payload.get("深证-收盘价") or payload.get("深证-收盘")
+    )
     record.shenzhen_pct_change = _to_percent(payload.get("深证-涨跌幅"))
     record.main_net_inflow = _to_float(payload.get("主力净流入-净额"))
     record.main_net_ratio = _to_percent(payload.get("主力净流入-净占比"))
