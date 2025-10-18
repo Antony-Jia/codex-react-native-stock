@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, Table, Tag, Typography, Space, Button, Popconfirm, message, Tabs } from 'antd';
 import { ReloadOutlined, DeleteOutlined, ClearOutlined, BarChartOutlined, UnorderedListOutlined, FunctionOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import apiClient from '../api/client';
+import { apiClient } from '../api/client';
 import type { Trace, FuncStats, MetricsCurrent } from '../types/api';
 import { formatLocalTime } from '../utils/dayjs';
 import { Column } from '@ant-design/plots';

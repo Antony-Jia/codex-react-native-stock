@@ -28,7 +28,8 @@ import {
 } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 
-import apiClient from '../api/client';
+import { apiClient } from '../api/client';
+import QuarterPicker from '../components/QuarterPicker';
 import type {
   ShanghaiAManualUpdateResponse,
   ShanghaiAMarketFundFlow,
@@ -43,6 +44,16 @@ import type {
 const { Title } = Typography;
 
 type StockFormValues = ShanghaiAStockCreate & { listing_date?: Dayjs; is_active?: boolean };
+type BalanceSheetTableRow = Partial<ShanghaiAStockBalanceSheetSummary> & {
+  key: string;
+  isGroup?: boolean;
+  children?: BalanceSheetTableRow[];
+};
+type PerformanceTableRow = Partial<ShanghaiAStockPerformanceSummary> & {
+  key: string;
+  isGroup?: boolean;
+  children?: PerformanceTableRow[];
+};
 
 const ShanghaiA: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('stocks');
@@ -69,20 +80,21 @@ const ShanghaiA: React.FC = () => {
   // Balance sheet state
   const [balanceSheetLoading, setBalanceSheetLoading] = useState(false);
   const [balanceSheets, setBalanceSheets] = useState<ShanghaiAStockBalanceSheetSummary[]>([]);
-  const [balanceSheetPeriod, setBalanceSheetPeriod] = useState<string>();
-  const [balanceSheetDate, setBalanceSheetDate] = useState<Dayjs | null>(null);
+  const [balanceSheetStart, setBalanceSheetStart] = useState<Dayjs | null>(null);
+  const [balanceSheetEnd, setBalanceSheetEnd] = useState<Dayjs | null>(null);
   const [balanceSheetCode, setBalanceSheetCode] = useState<string>();
 
   // Performance state
   const [performanceLoading, setPerformanceLoading] = useState(false);
   const [performances, setPerformances] = useState<ShanghaiAStockPerformanceSummary[]>([]);
-  const [performancePeriod, setPerformancePeriod] = useState<string>();
-  const [performanceDate, setPerformanceDate] = useState<Dayjs | null>(null);
+  const [performanceStart, setPerformanceStart] = useState<Dayjs | null>(null);
+  const [performanceEnd, setPerformanceEnd] = useState<Dayjs | null>(null);
   const [performanceCode, setPerformanceCode] = useState<string>();
 
   // Financial collect state
   const [collectLoading, setCollectLoading] = useState(false);
-  const [collectForm] = Form.useForm();
+  const [collectStartQuarter, setCollectStartQuarter] = useState<Dayjs | null>(null);
+  const [collectEndQuarter, setCollectEndQuarter] = useState<Dayjs | null>(null);
 
   // Manual update state
   const [manualUpdateLoading, setManualUpdateLoading] = useState(false);
@@ -115,6 +127,27 @@ const ShanghaiA: React.FC = () => {
     }
     return value.toFixed(2);
   };
+
+  const formatQuarterLabel = (value?: string) => {
+    if (!value) {
+      return '-';
+    }
+    const normalized = value.replace(/-/g, '');
+    if (normalized.length !== 8) {
+      return value;
+    }
+    const year = normalized.slice(0, 4);
+    const month = normalized.slice(4, 6);
+    let quarter = '';
+    if (month === '03') quarter = 'Q1';
+    else if (month === '06') quarter = 'Q2';
+    else if (month === '09') quarter = 'Q3';
+    else if (month === '12') quarter = 'Q4';
+    return quarter ? `${year} ${quarter}` : value;
+  };
+
+  const formatQuarterParam = (value: Dayjs | null) => (value ? value.format('YYYYMMDD') : undefined);
+  const normalizePeriodValue = (value?: string) => (value ? value.replace(/-/g, '') : '');
 
   const loadStocks = async () => {
     setStockLoading(true);
@@ -169,19 +202,28 @@ const ShanghaiA: React.FC = () => {
     setBalanceSheetLoading(true);
     try {
       const params: {
-        report_period?: string;
-        announcement_date?: string;
+        start_period?: string;
+        end_period?: string;
         stock_code?: string;
         limit?: number;
       } = { limit: 100 };
-      if (balanceSheetPeriod) {
-        params.report_period = balanceSheetPeriod;
+      if (balanceSheetStart && balanceSheetEnd && balanceSheetEnd.isBefore(balanceSheetStart)) {
+        message.warning('结束季度不能早于开始季度');
+        return;
       }
-      if (balanceSheetDate) {
-        params.announcement_date = balanceSheetDate.format('YYYY-MM-DD');
+      const startParam = formatQuarterParam(balanceSheetStart);
+      const endParam = formatQuarterParam(balanceSheetEnd);
+      if (startParam) {
+        params.start_period = startParam;
+      }
+      if (endParam || startParam) {
+        params.end_period = endParam ?? startParam;
       }
       if (balanceSheetCode) {
-        params.stock_code = balanceSheetCode;
+        const normalized = balanceSheetCode.trim();
+        if (normalized) {
+          params.stock_code = normalized;
+        }
       }
       const data = await apiClient.getShanghaiABalanceSheetSummary(params);
       setBalanceSheets(data);
@@ -197,19 +239,28 @@ const ShanghaiA: React.FC = () => {
     setPerformanceLoading(true);
     try {
       const params: {
-        report_period?: string;
-        announcement_date?: string;
+        start_period?: string;
+        end_period?: string;
         stock_code?: string;
         limit?: number;
       } = { limit: 100 };
-      if (performancePeriod) {
-        params.report_period = performancePeriod;
+      if (performanceStart && performanceEnd && performanceEnd.isBefore(performanceStart)) {
+        message.warning('结束季度不能早于开始季度');
+        return;
       }
-      if (performanceDate) {
-        params.announcement_date = performanceDate.format('YYYY-MM-DD');
+      const startParam = formatQuarterParam(performanceStart);
+      const endParam = formatQuarterParam(performanceEnd);
+      if (startParam) {
+        params.start_period = startParam;
+      }
+      if (endParam || startParam) {
+        params.end_period = endParam ?? startParam;
       }
       if (performanceCode) {
-        params.stock_code = performanceCode;
+        const normalized = performanceCode.trim();
+        if (normalized) {
+          params.stock_code = normalized;
+        }
       }
       const data = await apiClient.getShanghaiAPerformanceSummary(params);
       setPerformances(data);
@@ -220,6 +271,97 @@ const ShanghaiA: React.FC = () => {
       setPerformanceLoading(false);
     }
   };
+
+  const balanceSheetTreeData = useMemo<BalanceSheetTableRow[]>(() => {
+    if (!balanceSheets.length) {
+      return [];
+    }
+    const grouped = new Map<string, ShanghaiAStockBalanceSheetSummary[]>();
+    balanceSheets.forEach((sheet) => {
+      if (!sheet.stock_code) {
+        return;
+      }
+      const list = grouped.get(sheet.stock_code) ?? [];
+      list.push(sheet);
+      grouped.set(sheet.stock_code, list);
+    });
+    return Array.from(grouped.entries())
+      .map(([code, rows]) => {
+        const sorted = rows
+          .slice()
+          .sort((a, b) =>
+            normalizePeriodValue(b.report_period).localeCompare(normalizePeriodValue(a.report_period))
+          );
+        const children = sorted.map((row, index) => {
+          const baseKey =
+            normalizePeriodValue(row.report_period) ||
+            row.announcement_date ||
+            row.created_at ||
+            `${index}`;
+          return {
+            ...row,
+            key: `balance-${code}-${baseKey}`,
+            isGroup: false,
+          };
+        });
+        const head = sorted[0];
+        return {
+          key: `balance-${code}`,
+          stock_code: code,
+          stock_name: head?.stock_name,
+          short_name: head?.short_name,
+          isGroup: true,
+          children,
+        } as BalanceSheetTableRow;
+      })
+      .sort((a, b) => (a.stock_code ?? '').localeCompare(b.stock_code ?? ''));
+  }, [balanceSheets]);
+
+  const performanceTreeData = useMemo<PerformanceTableRow[]>(() => {
+    if (!performances.length) {
+      return [];
+    }
+    const grouped = new Map<string, ShanghaiAStockPerformanceSummary[]>();
+    performances.forEach((perf) => {
+      if (!perf.stock_code) {
+        return;
+      }
+      const list = grouped.get(perf.stock_code) ?? [];
+      list.push(perf);
+      grouped.set(perf.stock_code, list);
+    });
+    return Array.from(grouped.entries())
+      .map(([code, rows]) => {
+        const sorted = rows
+          .slice()
+          .sort((a, b) =>
+            normalizePeriodValue(b.report_period).localeCompare(normalizePeriodValue(a.report_period))
+          );
+        const children = sorted.map((row, index) => {
+          const baseKey =
+            normalizePeriodValue(row.report_period) ||
+            row.announcement_date ||
+            row.created_at ||
+            `${index}`;
+          return {
+            ...row,
+            key: `performance-${code}-${baseKey}`,
+            isGroup: false,
+          };
+        });
+        const head = sorted[0];
+        return {
+          key: `performance-${code}`,
+          stock_code: code,
+          stock_name: head?.stock_name,
+          short_name: head?.short_name,
+          industry: head?.industry,
+          isGroup: true,
+          children,
+        } as PerformanceTableRow;
+      })
+      .sort((a, b) => (a.stock_code ?? '').localeCompare(b.stock_code ?? ''));
+  }, [performances]);
 
   useEffect(() => {
     if (activeTab === 'marketFundFlow') {
@@ -466,41 +608,204 @@ const ShanghaiA: React.FC = () => {
     { title: '成交额', dataIndex: 'amount', width: 140, render: (value?: number) => formatAmount(value) },
   ];
 
-  const balanceSheetColumns: ColumnsType<ShanghaiAStockBalanceSheetSummary> = [
-    { title: '股票代码', dataIndex: 'stock_code', width: 100, fixed: 'left' },
-    { title: '股票名称', dataIndex: 'stock_name', width: 140, fixed: 'left', render: (value) => value || '-' },
-    { title: '报告期', dataIndex: 'report_period', width: 100 },
-    { title: '公告日期', dataIndex: 'announcement_date', width: 110, render: (value) => value || '-' },
-    { title: '货币资金', dataIndex: 'currency_funds', width: 120, render: (value?: number) => formatAmount(value) },
-    { title: '应收账款', dataIndex: 'accounts_receivable', width: 120, render: (value?: number) => formatAmount(value) },
-    { title: '存货', dataIndex: 'inventory', width: 120, render: (value?: number) => formatAmount(value) },
-    { title: '总资产', dataIndex: 'total_assets', width: 140, render: (value?: number) => formatAmount(value) },
-    { title: '资产同比', dataIndex: 'total_assets_yoy', width: 100, render: (value?: number) => formatPercentTag(value) },
-    { title: '应付账款', dataIndex: 'accounts_payable', width: 120, render: (value?: number) => formatAmount(value) },
-    { title: '预收款项', dataIndex: 'advance_receipts', width: 120, render: (value?: number) => formatAmount(value) },
-    { title: '总负债', dataIndex: 'total_liabilities', width: 140, render: (value?: number) => formatAmount(value) },
-    { title: '负债同比', dataIndex: 'total_liabilities_yoy', width: 100, render: (value?: number) => formatPercentTag(value) },
-    { title: '资产负债率', dataIndex: 'debt_to_asset_ratio', width: 120, render: (value?: number) => formatPercentTag(value) },
-    { title: '所有者权益', dataIndex: 'total_equity', width: 140, render: (value?: number) => formatAmount(value) },
+  const balanceSheetColumns: ColumnsType<BalanceSheetTableRow> = [
+    {
+      title: '股票名称',
+      dataIndex: 'stock_name',
+      width: 180,
+      fixed: 'left',
+      render: (_value, record) =>
+        record.isGroup
+          ? `${record.stock_name ?? '-'} (${record.stock_code ?? '-'})`
+          : record.stock_name ?? '-',
+    },
+    {
+      title: '股票代码',
+      dataIndex: 'stock_code',
+      width: 120,
+      render: (value) => value ?? '-',
+    },
+    {
+      title: '报告期',
+      dataIndex: 'report_period',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatQuarterLabel(value)),
+    },
+    {
+      title: '公告日期',
+      dataIndex: 'announcement_date',
+      width: 130,
+      render: (value, record) => (record.isGroup ? '-' : value ?? '-'),
+    },
+    {
+      title: '货币资金',
+      dataIndex: 'currency_funds',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatAmount(value)),
+    },
+    {
+      title: '应收账款',
+      dataIndex: 'accounts_receivable',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatAmount(value)),
+    },
+    {
+      title: '存货',
+      dataIndex: 'inventory',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatAmount(value)),
+    },
+    {
+      title: '总资产',
+      dataIndex: 'total_assets',
+      width: 140,
+      render: (value, record) => (record.isGroup ? '-' : formatAmount(value)),
+    },
+    {
+      title: '资产同比',
+      dataIndex: 'total_assets_yoy',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatPercentTag(value)),
+    },
+    {
+      title: '应付账款',
+      dataIndex: 'accounts_payable',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatAmount(value)),
+    },
+    {
+      title: '预收款项',
+      dataIndex: 'advance_receipts',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatAmount(value)),
+    },
+    {
+      title: '总负债',
+      dataIndex: 'total_liabilities',
+      width: 140,
+      render: (value, record) => (record.isGroup ? '-' : formatAmount(value)),
+    },
+    {
+      title: '负债同比',
+      dataIndex: 'total_liabilities_yoy',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatPercentTag(value)),
+    },
+    {
+      title: '资产负债率',
+      dataIndex: 'debt_to_asset_ratio',
+      width: 130,
+      render: (value, record) => (record.isGroup ? '-' : formatPercentTag(value)),
+    },
+    {
+      title: '所有者权益',
+      dataIndex: 'total_equity',
+      width: 140,
+      render: (value, record) => (record.isGroup ? '-' : formatAmount(value)),
+    },
   ];
 
-  const performanceColumns: ColumnsType<ShanghaiAStockPerformanceSummary> = [
-    { title: '股票代码', dataIndex: 'stock_code', width: 100, fixed: 'left' },
-    { title: '股票名称', dataIndex: 'stock_name', width: 140, fixed: 'left', render: (value) => value || '-' },
-    { title: '报告期', dataIndex: 'report_period', width: 100 },
-    { title: '公告日期', dataIndex: 'announcement_date', width: 110, render: (value) => value || '-' },
-    { title: 'EPS', dataIndex: 'eps', width: 100, render: (value?: number) => formatNumber(value, 4) },
-    { title: '营业收入', dataIndex: 'revenue', width: 140, render: (value?: number) => formatAmount(value) },
-    { title: '收入同比', dataIndex: 'revenue_yoy', width: 100, render: (value?: number) => formatPercentTag(value) },
-    { title: '收入环比', dataIndex: 'revenue_qoq', width: 100, render: (value?: number) => formatPercentTag(value) },
-    { title: '净利润', dataIndex: 'net_profit', width: 140, render: (value?: number) => formatAmount(value) },
-    { title: '利润同比', dataIndex: 'net_profit_yoy', width: 100, render: (value?: number) => formatPercentTag(value) },
-    { title: '利润环比', dataIndex: 'net_profit_qoq', width: 100, render: (value?: number) => formatPercentTag(value) },
-    { title: 'BPS', dataIndex: 'bps', width: 100, render: (value?: number) => formatNumber(value, 4) },
-    { title: 'ROE', dataIndex: 'roe', width: 100, render: (value?: number) => formatPercentTag(value) },
-    { title: '经营现金流/股', dataIndex: 'operating_cash_flow_ps', width: 140, render: (value?: number) => formatNumber(value, 4) },
-    { title: '毛利率', dataIndex: 'gross_margin', width: 100, render: (value?: number) => formatPercentTag(value) },
-    { title: '行业', dataIndex: 'industry', width: 120, render: (value) => value || '-' },
+  const performanceColumns: ColumnsType<PerformanceTableRow> = [
+    {
+      title: '股票名称',
+      dataIndex: 'stock_name',
+      width: 180,
+      fixed: 'left',
+      render: (_value, record) =>
+        record.isGroup
+          ? `${record.stock_name ?? '-'} (${record.stock_code ?? '-'})`
+          : record.stock_name ?? '-',
+    },
+    {
+      title: '股票代码',
+      dataIndex: 'stock_code',
+      width: 120,
+      render: (value) => value ?? '-',
+    },
+    {
+      title: '报告期',
+      dataIndex: 'report_period',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatQuarterLabel(value)),
+    },
+    {
+      title: '公告日期',
+      dataIndex: 'announcement_date',
+      width: 130,
+      render: (value, record) => (record.isGroup ? '-' : value ?? '-'),
+    },
+    {
+      title: 'EPS',
+      dataIndex: 'eps',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatNumber(value, 4)),
+    },
+    {
+      title: '营业收入',
+      dataIndex: 'revenue',
+      width: 140,
+      render: (value, record) => (record.isGroup ? '-' : formatAmount(value)),
+    },
+    {
+      title: '收入同比',
+      dataIndex: 'revenue_yoy',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatPercentTag(value)),
+    },
+    {
+      title: '收入环比',
+      dataIndex: 'revenue_qoq',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatPercentTag(value)),
+    },
+    {
+      title: '净利润',
+      dataIndex: 'net_profit',
+      width: 140,
+      render: (value, record) => (record.isGroup ? '-' : formatAmount(value)),
+    },
+    {
+      title: '利润同比',
+      dataIndex: 'net_profit_yoy',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatPercentTag(value)),
+    },
+    {
+      title: '利润环比',
+      dataIndex: 'net_profit_qoq',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatPercentTag(value)),
+    },
+    {
+      title: 'BPS',
+      dataIndex: 'bps',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatNumber(value, 4)),
+    },
+    {
+      title: 'ROE',
+      dataIndex: 'roe',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatPercentTag(value)),
+    },
+    {
+      title: '经营现金流/股',
+      dataIndex: 'operating_cash_flow_ps',
+      width: 160,
+      render: (value, record) => (record.isGroup ? '-' : formatNumber(value, 4)),
+    },
+    {
+      title: '毛利率',
+      dataIndex: 'gross_margin',
+      width: 120,
+      render: (value, record) => (record.isGroup ? '-' : formatPercentTag(value)),
+    },
+    {
+      title: '行业',
+      dataIndex: 'industry',
+      width: 140,
+      render: (value, record) => (record.isGroup ? value ?? '-' : value ?? '-'),
+    },
   ];
 
   return (
@@ -652,17 +957,19 @@ const ShanghaiA: React.FC = () => {
           children: (
             <Card>
               <Space style={{ marginBottom: 16 }} wrap>
-                <Input
-                  placeholder="报告期（如 2024-03-31）"
-                  value={balanceSheetPeriod}
-                  onChange={(e) => setBalanceSheetPeriod(e.target.value || undefined)}
-                  style={{ width: 200 }}
+                <QuarterPicker
+                  value={balanceSheetStart}
+                  onChange={setBalanceSheetStart}
+                  placeholder="开始季度"
+                  style={{ width: 220 }}
                   allowClear
                 />
-                <DatePicker
-                  value={balanceSheetDate}
-                  onChange={setBalanceSheetDate}
-                  placeholder="公告日期"
+                <QuarterPicker
+                  value={balanceSheetEnd}
+                  onChange={setBalanceSheetEnd}
+                  placeholder="结束季度（可选）"
+                  style={{ width: 220 }}
+                  allowClear
                 />
                 <Input
                   placeholder="股票代码"
@@ -679,26 +986,37 @@ const ShanghaiA: React.FC = () => {
                 <Space direction="vertical" size="small" style={{ width: '100%' }}>
                   <Typography.Text strong>批量采集资产负债表数据</Typography.Text>
                   <Space wrap>
-                    <Input
-                      placeholder="起始季度（如 2024-03-31）"
-                      style={{ width: 200 }}
-                      onChange={(e) => collectForm.setFieldsValue({ start_period: e.target.value })}
+                    <QuarterPicker
+                      value={collectStartQuarter}
+                      onChange={setCollectStartQuarter}
+                      placeholder="起始季度"
+                      style={{ width: 220 }}
                     />
-                    <Input
+                    <QuarterPicker
+                      value={collectEndQuarter}
+                      onChange={setCollectEndQuarter}
                       placeholder="结束季度（可选）"
-                      style={{ width: 200 }}
-                      onChange={(e) => collectForm.setFieldsValue({ end_period: e.target.value })}
+                      style={{ width: 220 }}
                     />
                     <Button
                       type="primary"
                       icon={<PlayCircleOutlined />}
                       onClick={async () => {
+                        const startParam = formatQuarterParam(collectStartQuarter);
+                        const endParam = formatQuarterParam(collectEndQuarter);
+                        if (!startParam) {
+                          message.warning('请选择起始季度');
+                          return;
+                        }
+                        if (collectStartQuarter && collectEndQuarter && collectEndQuarter.isBefore(collectStartQuarter)) {
+                          message.warning('结束季度不能早于起始季度');
+                          return;
+                        }
                         try {
-                          const values = await collectForm.validateFields(['start_period', 'end_period']);
                           setCollectLoading(true);
                           await apiClient.collectShanghaiAFinancials({
-                            start_period: values.start_period,
-                            end_period: values.end_period,
+                            start_period: startParam,
+                            end_period: endParam ?? startParam,
                             include_balance_sheet: true,
                             include_performance: false,
                           });
@@ -721,12 +1039,13 @@ const ShanghaiA: React.FC = () => {
                   </Space>
                 </Space>
               </Card>
-              <Table<ShanghaiAStockBalanceSheetSummary>
+              <Table<BalanceSheetTableRow>
                 columns={balanceSheetColumns}
-                dataSource={balanceSheets}
+                dataSource={balanceSheetTreeData}
                 loading={balanceSheetLoading}
-                rowKey={(record) => `${record.stock_code}-${record.report_period}`}
+                rowKey={(record) => record.key}
                 pagination={{ pageSize: 20 }}
+                expandable={{ expandRowByClick: true }}
                 scroll={{ x: 1800 }}
               />
             </Card>
@@ -743,17 +1062,19 @@ const ShanghaiA: React.FC = () => {
           children: (
             <Card>
               <Space style={{ marginBottom: 16 }} wrap>
-                <Input
-                  placeholder="报告期（如 2024-03-31）"
-                  value={performancePeriod}
-                  onChange={(e) => setPerformancePeriod(e.target.value || undefined)}
-                  style={{ width: 200 }}
+                <QuarterPicker
+                  value={performanceStart}
+                  onChange={setPerformanceStart}
+                  placeholder="开始季度"
+                  style={{ width: 220 }}
                   allowClear
                 />
-                <DatePicker
-                  value={performanceDate}
-                  onChange={setPerformanceDate}
-                  placeholder="公告日期"
+                <QuarterPicker
+                  value={performanceEnd}
+                  onChange={setPerformanceEnd}
+                  placeholder="结束季度（可选）"
+                  style={{ width: 220 }}
+                  allowClear
                 />
                 <Input
                   placeholder="股票代码"
@@ -770,26 +1091,37 @@ const ShanghaiA: React.FC = () => {
                 <Space direction="vertical" size="small" style={{ width: '100%' }}>
                   <Typography.Text strong>批量采集业绩快报数据</Typography.Text>
                   <Space wrap>
-                    <Input
-                      placeholder="起始季度（如 2024-03-31）"
-                      style={{ width: 200 }}
-                      onChange={(e) => collectForm.setFieldsValue({ start_period: e.target.value })}
+                    <QuarterPicker
+                      value={collectStartQuarter}
+                      onChange={setCollectStartQuarter}
+                      placeholder="起始季度"
+                      style={{ width: 220 }}
                     />
-                    <Input
+                    <QuarterPicker
+                      value={collectEndQuarter}
+                      onChange={setCollectEndQuarter}
                       placeholder="结束季度（可选）"
-                      style={{ width: 200 }}
-                      onChange={(e) => collectForm.setFieldsValue({ end_period: e.target.value })}
+                      style={{ width: 220 }}
                     />
                     <Button
                       type="primary"
                       icon={<PlayCircleOutlined />}
                       onClick={async () => {
+                        const startParam = formatQuarterParam(collectStartQuarter);
+                        const endParam = formatQuarterParam(collectEndQuarter);
+                        if (!startParam) {
+                          message.warning('请选择起始季度');
+                          return;
+                        }
+                        if (collectStartQuarter && collectEndQuarter && collectEndQuarter.isBefore(collectStartQuarter)) {
+                          message.warning('结束季度不能早于起始季度');
+                          return;
+                        }
                         try {
-                          const values = await collectForm.validateFields(['start_period', 'end_period']);
                           setCollectLoading(true);
                           await apiClient.collectShanghaiAFinancials({
-                            start_period: values.start_period,
-                            end_period: values.end_period,
+                            start_period: startParam,
+                            end_period: endParam ?? startParam,
                             include_balance_sheet: false,
                             include_performance: true,
                           });
@@ -812,12 +1144,13 @@ const ShanghaiA: React.FC = () => {
                   </Space>
                 </Space>
               </Card>
-              <Table<ShanghaiAStockPerformanceSummary>
+              <Table<PerformanceTableRow>
                 columns={performanceColumns}
-                dataSource={performances}
+                dataSource={performanceTreeData}
                 loading={performanceLoading}
-                rowKey={(record) => `${record.stock_code}-${record.report_period}`}
+                rowKey={(record) => record.key}
                 pagination={{ pageSize: 20 }}
+                expandable={{ expandRowByClick: true }}
                 scroll={{ x: 1800 }}
               />
             </Card>

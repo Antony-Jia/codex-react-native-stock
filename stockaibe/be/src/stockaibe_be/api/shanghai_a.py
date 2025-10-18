@@ -61,6 +61,24 @@ def _normalize_info_value(value: object) -> Optional[str]:
     return text
 
 
+def _parse_date_param(param_name: str, value: Optional[str]) -> Optional[dt.date]:
+    """Parse a date query parameter supporting YYYY-MM-DD or YYYYMMDD formats."""
+    if value is None:
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    try:
+        if len(text) == 8 and text.isdigit():
+            return dt.datetime.strptime(text, "%Y%m%d").date()
+        return dt.date.fromisoformat(text)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid {param_name}: expected YYYY-MM-DD or YYYYMMDD format",
+        ) from exc
+
+
 def _extract_info_records(info_df) -> List[Tuple[str, Optional[str]]]:
     if info_df is None or info_df.empty:
         return []
@@ -249,10 +267,10 @@ def sync_shanghai_a_stock_info(
     response_model=List[ShanghaiAStockBalanceSheetSummary],
 )
 def list_shanghai_a_balance_sheet_summary(
-    report_period: Optional[dt.date] = Query(None, description="Quarter end date (deprecated, use start_period)"),
-    start_period: Optional[dt.date] = Query(None, description="Start quarter end date"),
-    end_period: Optional[dt.date] = Query(None, description="End quarter end date"),
-    announcement_date: Optional[dt.date] = Query(None, description="Announcement date"),
+    report_period: Optional[str] = Query(None, description="Quarter end date (deprecated, use start_period)"),
+    start_period: Optional[str] = Query(None, description="Start quarter end date"),
+    end_period: Optional[str] = Query(None, description="End quarter end date"),
+    announcement_date: Optional[str] = Query(None, description="Announcement date"),
     stock_code: Optional[str] = Query(None, description="Filter by stock code"),
     limit: int = Query(500, ge=1, le=2000),
     db: Session = Depends(get_db),
@@ -260,9 +278,15 @@ def list_shanghai_a_balance_sheet_summary(
 ):
     """Return balance sheet snapshot per stock for the given quarter or quarter range."""
     # Support both old single period and new range query
-    target_start = start_period or report_period
-    target_end = end_period
-    target_announcement = announcement_date
+    target_start = _parse_date_param("start_period", start_period or report_period)
+    target_end = _parse_date_param("end_period", end_period)
+    target_announcement = _parse_date_param("announcement_date", announcement_date)
+
+    if target_start and target_end and target_end < target_start:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="end_period must be greater than or equal to start_period",
+        )
 
     if target_start is None and target_end is None and target_announcement is None:
         target_announcement = db.exec(
@@ -327,10 +351,10 @@ def list_shanghai_a_balance_sheet_summary(
     response_model=List[ShanghaiAStockPerformanceSummary],
 )
 def list_shanghai_a_performance_summary(
-    report_period: Optional[dt.date] = Query(None, description="Quarter end date (deprecated, use start_period)"),
-    start_period: Optional[dt.date] = Query(None, description="Start quarter end date"),
-    end_period: Optional[dt.date] = Query(None, description="End quarter end date"),
-    announcement_date: Optional[dt.date] = Query(None, description="Announcement date"),
+    report_period: Optional[str] = Query(None, description="Quarter end date (deprecated, use start_period)"),
+    start_period: Optional[str] = Query(None, description="Start quarter end date"),
+    end_period: Optional[str] = Query(None, description="End quarter end date"),
+    announcement_date: Optional[str] = Query(None, description="Announcement date"),
     stock_code: Optional[str] = Query(None, description="Filter by stock code"),
     limit: int = Query(500, ge=1, le=2000),
     db: Session = Depends(get_db),
@@ -338,9 +362,15 @@ def list_shanghai_a_performance_summary(
 ):
     """Return performance snapshot per stock for the given quarter or quarter range."""
     # Support both old single period and new range query
-    target_start = start_period or report_period
-    target_end = end_period
-    target_announcement = announcement_date
+    target_start = _parse_date_param("start_period", start_period or report_period)
+    target_end = _parse_date_param("end_period", end_period)
+    target_announcement = _parse_date_param("announcement_date", announcement_date)
+
+    if target_start and target_end and target_end < target_start:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="end_period must be greater than or equal to start_period",
+        )
 
     if target_start is None and target_end is None and target_announcement is None:
         target_announcement = db.exec(

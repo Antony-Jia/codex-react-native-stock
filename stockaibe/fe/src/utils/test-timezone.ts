@@ -3,7 +3,7 @@
  * 用于验证 UTC 时间是否正确转换为 UTC+8
  */
 
-import { formatLocalTime, toLocalTime } from './dayjs';
+import { formatLocalTime } from './dayjs';
 
 // 测试用例
 const testCases = [

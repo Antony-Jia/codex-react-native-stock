@@ -11,7 +11,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { Line, LineConfig, Gauge, GaugeConfig } from '@ant-design/plots';
-import apiClient from '../api/client';
+import { apiClient } from '../api/client';
 import type { MetricsCurrent, MetricSeriesPoint, Quota } from '../types/api';
 import { formatLocalTime } from '../utils/dayjs';
 

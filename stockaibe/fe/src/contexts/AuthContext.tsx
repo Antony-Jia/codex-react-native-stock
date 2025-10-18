@@ -4,7 +4,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { message } from 'antd';
-import apiClient from '../api/client';
+import type { AxiosError } from 'axios';
+import { apiClient } from '../api/client';
 import type { User, LoginRequest, RegisterRequest } from '../types/api';
 
 interface AuthContextType {
@@ -58,8 +59,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const currentUser = await apiClient.getCurrentUser();
       setUser(currentUser);
       message.success('登录成功');
-    } catch (error: any) {
-      message.error(error.response?.data?.detail || '登录失败');
+    } catch (error) {
+      const err = error as AxiosError<{ detail?: string }>;
+      message.error(err.response?.data?.detail ?? '登录失败');
       throw error;
     }
   };
@@ -68,8 +70,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await apiClient.register(data);
       message.success('注册成功，请登录');
-    } catch (error: any) {
-      message.error(error.response?.data?.detail || '注册失败');
+    } catch (error) {
+      const err = error as AxiosError<{ detail?: string }>;
+      message.error(err.response?.data?.detail ?? '注册失败');
       throw error;
     }
   };

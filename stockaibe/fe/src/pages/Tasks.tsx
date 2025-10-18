@@ -21,7 +21,7 @@ import {
   CloseCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import apiClient from '../api/client';
+import { apiClient } from '../api/client';
 import type { Task } from '../types/api';
 import { formatLocalTime } from '../utils/dayjs';
 
