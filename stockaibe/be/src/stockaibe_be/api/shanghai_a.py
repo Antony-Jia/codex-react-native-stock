@@ -271,6 +271,8 @@ def list_shanghai_a_balance_sheet_summary(
     start_period: Optional[str] = Query(None, description="Start quarter end date"),
     end_period: Optional[str] = Query(None, description="End quarter end date"),
     announcement_date: Optional[str] = Query(None, description="Announcement date"),
+    start_announcement_date: Optional[str] = Query(None, description="Announcement start date"),
+    end_announcement_date: Optional[str] = Query(None, description="Announcement end date"),
     stock_code: Optional[str] = Query(None, description="Filter by stock code"),
     limit: int = Query(500, ge=1, le=2000),
     db: Session = Depends(get_db),
@@ -281,6 +283,8 @@ def list_shanghai_a_balance_sheet_summary(
     target_start = _parse_date_param("start_period", start_period or report_period)
     target_end = _parse_date_param("end_period", end_period)
     target_announcement = _parse_date_param("announcement_date", announcement_date)
+    target_announcement_start = _parse_date_param("start_announcement_date", start_announcement_date)
+    target_announcement_end = _parse_date_param("end_announcement_date", end_announcement_date)
 
     if target_start and target_end and target_end < target_start:
         raise HTTPException(
@@ -288,7 +292,23 @@ def list_shanghai_a_balance_sheet_summary(
             detail="end_period must be greater than or equal to start_period",
         )
 
-    if target_start is None and target_end is None and target_announcement is None:
+    if (
+        target_announcement_start
+        and target_announcement_end
+        and target_announcement_end < target_announcement_start
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="end_announcement_date must be greater than or equal to start_announcement_date",
+        )
+
+    if (
+        target_start is None
+        and target_end is None
+        and target_announcement is None
+        and target_announcement_start is None
+        and target_announcement_end is None
+    ):
         target_announcement = db.exec(
             select(ShanghaiAStockBalanceSheet.announcement_date)
             .order_by(ShanghaiAStockBalanceSheet.announcement_date.desc())
@@ -306,6 +326,10 @@ def list_shanghai_a_balance_sheet_summary(
 
     if target_announcement is not None:
         statement = statement.where(ShanghaiAStockBalanceSheet.announcement_date == target_announcement)
+    if target_announcement_start is not None:
+        statement = statement.where(ShanghaiAStockBalanceSheet.announcement_date >= target_announcement_start)
+    if target_announcement_end is not None:
+        statement = statement.where(ShanghaiAStockBalanceSheet.announcement_date <= target_announcement_end)
     if target_start is not None:
         statement = statement.where(ShanghaiAStockBalanceSheet.report_period >= target_start)
     if target_end is not None:
@@ -355,6 +379,8 @@ def list_shanghai_a_performance_summary(
     start_period: Optional[str] = Query(None, description="Start quarter end date"),
     end_period: Optional[str] = Query(None, description="End quarter end date"),
     announcement_date: Optional[str] = Query(None, description="Announcement date"),
+    start_announcement_date: Optional[str] = Query(None, description="Announcement start date"),
+    end_announcement_date: Optional[str] = Query(None, description="Announcement end date"),
     stock_code: Optional[str] = Query(None, description="Filter by stock code"),
     limit: int = Query(500, ge=1, le=2000),
     db: Session = Depends(get_db),
@@ -365,6 +391,8 @@ def list_shanghai_a_performance_summary(
     target_start = _parse_date_param("start_period", start_period or report_period)
     target_end = _parse_date_param("end_period", end_period)
     target_announcement = _parse_date_param("announcement_date", announcement_date)
+    target_announcement_start = _parse_date_param("start_announcement_date", start_announcement_date)
+    target_announcement_end = _parse_date_param("end_announcement_date", end_announcement_date)
 
     if target_start and target_end and target_end < target_start:
         raise HTTPException(
@@ -372,7 +400,23 @@ def list_shanghai_a_performance_summary(
             detail="end_period must be greater than or equal to start_period",
         )
 
-    if target_start is None and target_end is None and target_announcement is None:
+    if (
+        target_announcement_start
+        and target_announcement_end
+        and target_announcement_end < target_announcement_start
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="end_announcement_date must be greater than or equal to start_announcement_date",
+        )
+
+    if (
+        target_start is None
+        and target_end is None
+        and target_announcement is None
+        and target_announcement_start is None
+        and target_announcement_end is None
+    ):
         target_announcement = db.exec(
             select(ShanghaiAStockPerformance.announcement_date)
             .order_by(ShanghaiAStockPerformance.announcement_date.desc())
@@ -390,6 +434,10 @@ def list_shanghai_a_performance_summary(
 
     if target_announcement is not None:
         statement = statement.where(ShanghaiAStockPerformance.announcement_date == target_announcement)
+    if target_announcement_start is not None:
+        statement = statement.where(ShanghaiAStockPerformance.announcement_date >= target_announcement_start)
+    if target_announcement_end is not None:
+        statement = statement.where(ShanghaiAStockPerformance.announcement_date <= target_announcement_end)
     if target_start is not None:
         statement = statement.where(ShanghaiAStockPerformance.report_period >= target_start)
     if target_end is not None:
