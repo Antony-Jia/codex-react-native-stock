@@ -3,7 +3,9 @@ import { Button, Card, DatePicker, Input, Space, Table, Typography, message } fr
 import type { ColumnsType } from 'antd/es/table';
 import { LineChartOutlined, PlayCircleOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { Dayjs } from 'dayjs';
-import type { RangeValue } from 'rc-picker/lib/interface';
+
+type RangeValue<T> = [T | null, T | null] | null;
+
 import QuarterPicker from '../QuarterPicker';
 import type { PerformanceTableRow } from './types';
 import { formatAmount, formatNumber, formatQuarterLabel, formatQuarterParam } from './utils';
