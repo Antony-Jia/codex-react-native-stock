@@ -18,6 +18,7 @@ from ..models import (
     ShanghaiAStockFundFlow,
     ShanghaiAStockPerformance,
 )
+from ..services.shanghai_a_service import ShanghaiAService
 from ..services.task_decorators import LimitCallTask, SchedulerTask
 
 logger = get_logger(__name__)
@@ -416,6 +417,17 @@ def fetch_stock_performance(raw_date: str) -> pd.DataFrame:
     return ak.stock_yjbb_em(date=raw_date)
 
 
+@LimitCallTask(
+    id="akshare_company_news",
+    name="Company news",
+    quota_name=AKSHARE_DAILY_QUOTA,
+    description="Fetch company news via ak.stock_gsrl_gsdt_em",
+)
+def fetch_company_news(date: str) -> pd.DataFrame:
+    """Wrapper around ak.stock_gsrl_gsdt_em."""
+    return ak.stock_gsrl_gsdt_em(date=date)
+
+
 # ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
@@ -620,3 +632,14 @@ def collect_shanghai_a_financials(
 def scheduled_shanghai_a_daily(session: Session) -> None:
     """Scheduler entrypoint for the Shanghai A fund flow pipeline."""
     run_shanghai_a_daily_pipeline(session)
+
+
+@SchedulerTask(
+    id="akshare_company_news_hourly",
+    name="Company news update",
+    cron="0 * * * *",
+    description="Hourly task: refresh company news data",
+)
+def scheduled_company_news_hourly(session: Session) -> None:
+    """Scheduler entrypoint for the company news pipeline."""
+    ShanghaiAService.refresh_company_news(session, fetch_company_news)

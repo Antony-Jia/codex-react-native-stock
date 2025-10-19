@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import math
 from typing import Dict, List, Optional, Tuple
 
@@ -10,6 +11,7 @@ from sqlmodel import Session, delete, func, select
 
 from ..core.logging_config import get_logger
 from ..models import (
+    ShanghaiACompanyNews,
     ShanghaiAMarketFundFlow,
     ShanghaiAStock,
     ShanghaiAStockBalanceSheet,
@@ -66,6 +68,13 @@ def _extract_info_records(info_df) -> List[Tuple[str, Optional[str]]]:
                 break
         records.append((key[:100], _normalize_info_value(value)))
     return records
+
+
+def _truncate_and_hash(text: str, max_len: int = 255) -> Tuple[str, str]:
+    """Truncate text and return both truncated text and its MD5 hash."""
+    truncated = text[:max_len] if len(text) > max_len else text
+    md5_hash = hashlib.md5(text.encode("utf-8")).hexdigest()
+    return truncated, md5_hash
 
 
 class ShanghaiAService:
@@ -485,3 +494,82 @@ class ShanghaiAService:
                 )
             )
         return response
+
+    # ---------------------------------------------------------------------------
+    # Company News
+    # ---------------------------------------------------------------------------
+
+    @staticmethod
+    def refresh_company_news(db: Session, fetch_func) -> int:
+        """Fetch daily company news, deduplicate, and store new items."""
+        try:
+            news_df = fetch_func(dt.date.today().strftime("%Y%m%d"))
+            if news_df is None or news_df.empty:
+                logger.info("No company news found for today.")
+                return 0
+        except Exception as exc:
+            logger.warning("Failed to fetch company news: %s", exc)
+            return 0
+
+        new_items_count = 0
+        for _, row in news_df.iterrows():
+            specific_matters = row.get("具体事项", "")
+            if not specific_matters:
+                continue
+
+            _, md5_hash = _truncate_and_hash(specific_matters)
+
+            # Check if news with this hash already exists
+            existing_news = db.exec(
+                select(ShanghaiACompanyNews).where(ShanghaiACompanyNews.md5_hash == md5_hash)
+            ).first()
+            if existing_news:
+                continue
+
+            try:
+                trade_date_str = row.get("交易日")
+                trade_date = (
+                    dt.datetime.strptime(trade_date_str, "%Y-%m-%d").date()
+                    if trade_date_str
+                    else dt.date.today()
+                )
+
+                news_item = ShanghaiACompanyNews(
+                    code=row.get("代码", "")[:12],
+                    name=row.get("简称", "")[:100],
+                    event_type=row.get("事件类型", "")[:100],
+                    specific_matters=specific_matters,
+                    trade_date=trade_date,
+                    md5_hash=md5_hash,
+                )
+                db.add(news_item)
+                new_items_count += 1
+
+            except Exception as exc:
+                logger.warning("Failed to process news item: %s. Row: %s", exc, row.to_dict())
+                db.rollback()
+
+        if new_items_count > 0:
+            db.commit()
+            logger.info("Successfully added %d new company news items.", new_items_count)
+
+        return new_items_count
+
+    @staticmethod
+    def list_company_news(
+        db: Session,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> Tuple[List[ShanghaiACompanyNews], int]:
+        """List company news with pagination. Returns (items, total)."""
+        total_count_statement = select(func.count()).select_from(select(ShanghaiACompanyNews).subquery())
+        total = db.exec(total_count_statement).one()
+
+        statement = (
+            select(ShanghaiACompanyNews)
+            .order_by(ShanghaiACompanyNews.trade_date.desc(), ShanghaiACompanyNews.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        items = list(db.exec(statement).all())
+        return items, total

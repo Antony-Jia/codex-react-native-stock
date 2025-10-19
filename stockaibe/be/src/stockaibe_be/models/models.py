@@ -234,3 +234,21 @@ class ShanghaiAStockPerformance(TimestampMixin, table=True):
     gross_margin: Optional[float] = Field(default=None, description="销售毛利率（%）")
     industry: Optional[str] = Field(default=None, max_length=100, description="所属行业")
 
+
+class ShanghaiACompanyNews(TimestampMixin, table=True):
+    """东方财富网-数据中心-股市日历-公司动态"""
+
+    __tablename__ = "shanghai_a_company_news"
+    __table_args__ = (
+        UniqueConstraint("md5_hash", name="uq_shanghai_a_company_news_md5_hash"),
+        {"extend_existing": True},
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    code: str = Field(max_length=12, index=True, description="股票代码")
+    name: str = Field(max_length=100, index=True, description="股票简称")
+    event_type: str = Field(max_length=100, description="事件类型")
+    specific_matters: str = Field(sa_column=Column(Text), description="具体事项")
+    trade_date: dt.date = Field(index=True, description="交易日")
+    md5_hash: str = Field(max_length=32, index=True, description="具体事项的MD5摘要")
+

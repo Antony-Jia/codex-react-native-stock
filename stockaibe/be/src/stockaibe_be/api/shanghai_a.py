@@ -13,6 +13,7 @@ from ..core.security import get_current_active_superuser, get_current_user, get_
 from ..models import User
 from ..schemas import (
     PaginatedResponse,
+    ShanghaiACompanyNewsRead,
     ShanghaiAFinancialCollectRequest,
     ShanghaiAFinancialCollectResponse,
     ShanghaiAManualUpdateRequest,
@@ -361,6 +362,23 @@ def list_stock_fund_flow(
 ):
     """Return stock-level fund flow summary for the given date."""
     return ShanghaiAService.list_stock_fund_flow(db, trade_date, stock_code, limit)
+
+
+# ---------------------------------------------------------------------------
+# Company News
+# ---------------------------------------------------------------------------
+
+
+@router.get("/company-news", response_model=PaginatedResponse[ShanghaiACompanyNewsRead])
+def list_company_news(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Return company news with pagination."""
+    items, total = ShanghaiAService.list_company_news(db, page=page, page_size=page_size)
+    return PaginatedResponse(items=items, total=total, page=page, page_size=page_size)
 
 
 # ---------------------------------------------------------------------------

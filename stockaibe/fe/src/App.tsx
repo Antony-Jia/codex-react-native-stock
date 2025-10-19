@@ -10,6 +10,7 @@ import Traces from './pages/Traces';
 import Tasks from './pages/Tasks';
 import Settings from './pages/Settings';
 import ShanghaiA from './pages/ShanghaiA';
+import CompanyNewsPage from './pages/shanghai_a/CompanyNews';
 
 const PrivateRoute = ({ children }: { children: React.ReactElement }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -48,6 +49,7 @@ const App = () => {
             <Route path="traces" element={<Traces />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="shanghai-a" element={<ShanghaiA />} />
+            <Route path="shanghai-a/company-news" element={<CompanyNewsPage />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>

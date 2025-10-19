@@ -30,8 +30,11 @@ const MainLayout = () => {
     if (location.pathname.startsWith('/tasks')) {
       return 'tasks';
     }
+    if (location.pathname.startsWith('/shanghai-a/company-news')) {
+      return 'shanghai-a-company-news';
+    }
     if (location.pathname.startsWith('/shanghai-a')) {
-      return 'shanghai-a';
+      return 'shanghai-a-data';
     }
     if (location.pathname.startsWith('/settings')) {
       return 'settings';
@@ -83,9 +86,14 @@ const MainLayout = () => {
           <Menu.Item key="tasks" icon={<ClockCircleOutlined />}>
             <Link to="/tasks">任务调度</Link>
           </Menu.Item>
-          <Menu.Item key="shanghai-a" icon={<StockOutlined />}>
-            <Link to="/shanghai-a">沪A股数据</Link>
-          </Menu.Item>
+          <Menu.SubMenu key="shanghai-a" icon={<StockOutlined />} title="沪A股数据">
+            <Menu.Item key="shanghai-a-data">
+              <Link to="/shanghai-a">数据总览</Link>
+            </Menu.Item>
+            <Menu.Item key="shanghai-a-company-news">
+              <Link to="/shanghai-a/company-news">公司动态</Link>
+            </Menu.Item>
+          </Menu.SubMenu>
           <Menu.Item key="settings" icon={<SettingOutlined />}>
             <Link to="/settings">系统设置</Link>
           </Menu.Item>

@@ -314,3 +314,15 @@ class ShanghaiAFinancialCollectResponse(BaseModel):
     balance_sheet_stocks: int
     performance_rows: int
     performance_stocks: int
+
+
+class ShanghaiACompanyNewsRead(BaseModel):
+    id: int
+    code: str
+    name: str
+    event_type: str
+    specific_matters: str
+    trade_date: dt.date
+    created_at: dt.datetime
+
+    model_config = {"from_attributes": True}
