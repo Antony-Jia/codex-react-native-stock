@@ -4,6 +4,7 @@ from .models import (
     Metric,
     Quota,
     SchedulerTask,
+    ShanghaiACompanyNews,
     ShanghaiAMarketFundFlow,
     ShanghaiAStock,
     ShanghaiAStockBalanceSheet,
@@ -28,4 +29,5 @@ __all__ = [
     "ShanghaiAMarketFundFlow",
     "ShanghaiAStockFundFlow",
     "ShanghaiAStockPerformance",
+    "ShanghaiACompanyNews",
 ]

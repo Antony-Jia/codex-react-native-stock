@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "codex-react-native-stock",
+			"path": "."
+		}
+	],
+	"settings": {
+		"python.languageServer": "None"
+	}
+}

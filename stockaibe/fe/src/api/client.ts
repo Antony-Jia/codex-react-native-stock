@@ -13,6 +13,7 @@ import type {
   QuotaCreate,
   QuotaUpdate,
   RegisterRequest,
+  ShanghaiACompanyNews,
   ShanghaiAFinancialCollectRequest,
   ShanghaiAFinancialCollectResponse,
   ShanghaiAManualUpdateRequest,
@@ -311,6 +312,12 @@ class ApiClient {
       '/shanghai-a/financials/collect',
       data
     );
+    return response.data;
+  }
+
+  // Company News API
+  async getCompanyNews(params?: { page?: number; page_size?: number }): Promise<PaginatedResponse<ShanghaiACompanyNews>> {
+    const response = await this.client.get<PaginatedResponse<ShanghaiACompanyNews>>('/shanghai-a/company-news', { params });
     return response.data;
   }
 

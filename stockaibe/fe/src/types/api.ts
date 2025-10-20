@@ -323,3 +323,14 @@ export interface ShanghaiAFinancialCollectResponse {
   performance_rows: number;
   performance_stocks: number;
 }
+
+export interface ShanghaiACompanyNews {
+  id: number;
+  trade_date: string;
+  code: string;
+  name: string;
+  event_type: string;
+  specific_matters: string;
+  created_at: string;
+  updated_at: string;
+}

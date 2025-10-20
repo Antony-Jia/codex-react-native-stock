@@ -37,6 +37,7 @@ from .schemas import (
     ShanghaiAStockPerformanceSummary,
     ShanghaiAFinancialCollectRequest,
     ShanghaiAFinancialCollectResponse,
+    ShanghaiACompanyNewsRead,
 )
 
 __all__ = [

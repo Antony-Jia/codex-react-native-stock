@@ -19,6 +19,7 @@ import {
   FileTextOutlined,
   FundOutlined, 
   LineChartOutlined,
+  NotificationOutlined,
 } from '@ant-design/icons';
 import dayjs, { Dayjs } from 'dayjs';
 
@@ -31,9 +32,11 @@ import {
   StockFundFlowTab,
   BalanceSheetTab,
   PerformanceTab,
+  CompanyNewsTab,
   type StockFormValues,
 } from '../components/ShanghaiA';
 import type {
+  ShanghaiACompanyNews,
   ShanghaiAManualUpdateResponse,
   ShanghaiAMarketFundFlow,
   ShanghaiAStock,
@@ -83,6 +86,12 @@ const ShanghaiA: React.FC = () => {
   const [performanceCode, setPerformanceCode] = useState<string>();
   const [performancePage, setPerformancePage] = useState(1);
   const [performanceTotal, setPerformanceTotal] = useState(0);
+
+  // Company news state
+  const [companyNewsLoading, setCompanyNewsLoading] = useState(false);
+  const [companyNews, setCompanyNews] = useState<ShanghaiACompanyNews[]>([]);
+  const [companyNewsPage, setCompanyNewsPage] = useState(1);
+  const [companyNewsTotal, setCompanyNewsTotal] = useState(0);
 
   // Financial collect state
   const [balanceCollectVisible, setBalanceCollectVisible] = useState(false);
@@ -246,6 +255,23 @@ const ShanghaiA: React.FC = () => {
     }
   };
 
+  const loadCompanyNews = async () => {
+    setCompanyNewsLoading(true);
+    try {
+      const response = await apiClient.getCompanyNews({
+        page: companyNewsPage,
+        page_size: 20,
+      });
+      setCompanyNews(response.items);
+      setCompanyNewsTotal(response.total);
+    } catch (error) {
+      console.error('Failed to load company news:', error);
+      message.error('加载公司动态失败');
+    } finally {
+      setCompanyNewsLoading(false);
+    }
+  };
+
   // Effects
   useEffect(() => {
     if (activeTab === 'stocks') {
@@ -258,6 +284,8 @@ const ShanghaiA: React.FC = () => {
       void loadBalanceSheets();
     } else if (activeTab === 'performance') {
       void loadPerformances();
+    } else if (activeTab === 'companyNews') {
+      void loadCompanyNews();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -282,6 +310,13 @@ const ShanghaiA: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [performancePage]);
+
+  useEffect(() => {
+    if (activeTab === 'companyNews') {
+      void loadCompanyNews();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyNewsPage]);
 
   // Event handlers
   const handleViewDetails = async (stock: ShanghaiAStock) => {
@@ -577,6 +612,25 @@ const ShanghaiA: React.FC = () => {
               onSetCollectStart={setPerformanceCollectStart}
               onSetCollectEnd={setPerformanceCollectEnd}
               onCollect={handlePerformanceCollect}
+            />
+          ),
+        },
+        {
+          key: 'companyNews',
+          label: (
+            <span>
+              <NotificationOutlined />
+              公司动态
+            </span>
+          ),
+          children: (
+            <CompanyNewsTab
+              data={companyNews}
+              loading={companyNewsLoading}
+              page={companyNewsPage}
+              total={companyNewsTotal}
+              onLoad={loadCompanyNews}
+              onSetPage={setCompanyNewsPage}
             />
           ),
         },
