@@ -37,6 +37,15 @@ handlers:
     maxBytes: 10485760  # 10MB
     backupCount: 5
     encoding: utf-8
+  
+  task_file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: detailed
+    filename: logs/tasks.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 5
+    encoding: utf-8
 
 loggers:
   stockaibe_be:
@@ -62,6 +71,11 @@ loggers:
   sqlalchemy:
     level: WARNING
     handlers: [console, file]
+    propagate: false
+  
+  stockaibe_be.tasks:
+    level: INFO
+    handlers: [task_file]
     propagate: false
 
 root:

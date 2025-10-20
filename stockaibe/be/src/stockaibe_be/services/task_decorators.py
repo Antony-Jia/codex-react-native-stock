@@ -12,6 +12,7 @@ from sqlmodel import Session, select
 from ..core.logging_config import get_logger
 
 logger = get_logger(__name__)
+task_logger = get_logger("stockaibe_be.tasks")  # 专门用于任务执行日志
 
 
 # 全局任务注册表
@@ -89,7 +90,23 @@ def SchedulerTask(
         # 保留原函数功能
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
+            start_time = time.time()
+            task_logger.info(f"[开始] 任务: {name} (ID: {id})")
+            
+            try:
+                result = func(*args, **kwargs)
+                elapsed_time = time.time() - start_time
+                task_logger.info(
+                    f"[成功] 任务: {name} (ID: {id}) - 耗时: {elapsed_time:.2f}秒"
+                )
+                return result
+            except Exception as e:
+                elapsed_time = time.time() - start_time
+                task_logger.error(
+                    f"[失败] 任务: {name} (ID: {id}) - 耗时: {elapsed_time:.2f}秒 - 错误: {str(e)}",
+                    exc_info=True
+                )
+                raise
         
         # 附加元数据到函数对象
         wrapper._task_metadata = metadata
