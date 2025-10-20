@@ -321,6 +321,16 @@ class ApiClient {
     return response.data;
   }
 
+  async collectCompanyNews(targetDate?: string): Promise<{ message: string; date: string; new_items: number }> {
+    const params = targetDate ? { target_date: targetDate } : {};
+    const response = await this.client.post<{ message: string; date: string; new_items: number }>(
+      '/shanghai-a/company-news/collect',
+      null,
+      { params }
+    );
+    return response.data;
+  }
+
   // SSE Events
   getEventsStreamUrl(): string {
     const token = this.token || localStorage.getItem('access_token');

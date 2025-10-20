@@ -381,6 +381,41 @@ def list_company_news(
     return PaginatedResponse(items=items, total=total, page=page, page_size=page_size)
 
 
+@router.post("/company-news/collect")
+def collect_company_news(
+    target_date: Optional[str] = Query(None, description="Target date in YYYY-MM-DD format, defaults to today"),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_active_superuser),
+):
+    """Manually trigger company news collection for a specific date."""
+    from ..tasks.aksharetest import fetch_company_news
+    
+    parsed_date = None
+    if target_date:
+        try:
+            parsed_date = dt.date.fromisoformat(target_date)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid date format: {target_date}. Expected YYYY-MM-DD",
+            ) from exc
+    
+    try:
+        new_items_count = ShanghaiAService.refresh_company_news(db, fetch_company_news, parsed_date)
+        actual_date = parsed_date or dt.date.today()
+        return {
+            "message": "Company news collection completed",
+            "date": actual_date.isoformat(),
+            "new_items": new_items_count,
+        }
+    except Exception as exc:
+        logger.error("Failed to collect company news: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to collect company news: {str(exc)}",
+        ) from exc
+
+
 # ---------------------------------------------------------------------------
 # Manual trigger
 # ---------------------------------------------------------------------------

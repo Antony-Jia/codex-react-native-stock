@@ -500,15 +500,19 @@ class ShanghaiAService:
     # ---------------------------------------------------------------------------
 
     @staticmethod
-    def refresh_company_news(db: Session, fetch_func) -> int:
+    def refresh_company_news(db: Session, fetch_func, target_date: Optional[dt.date] = None) -> int:
         """Fetch daily company news, deduplicate, and store new items."""
+        if target_date is None:
+            target_date = dt.date.today()
+        
+        date_str = target_date.strftime("%Y%m%d")
         try:
-            news_df = fetch_func(dt.date.today().strftime("%Y%m%d"))
+            news_df = fetch_func(date_str)
             if news_df is None or news_df.empty:
-                logger.info("No company news found for today.")
+                logger.info("No company news found for date: %s", date_str)
                 return 0
         except Exception as exc:
-            logger.warning("Failed to fetch company news: %s", exc)
+            logger.warning("Failed to fetch company news for %s: %s", date_str, exc)
             return 0
 
         new_items_count = 0
@@ -527,12 +531,14 @@ class ShanghaiAService:
                 continue
 
             try:
-                trade_date_str = row.get("交易日")
-                trade_date = (
-                    dt.datetime.strptime(trade_date_str, "%Y-%m-%d").date()
-                    if trade_date_str
-                    else dt.date.today()
-                )
+                trade_date_raw = row.get("交易日")
+                # Handle both datetime.date and string formats
+                if isinstance(trade_date_raw, dt.date):
+                    trade_date = trade_date_raw
+                elif isinstance(trade_date_raw, str):
+                    trade_date = dt.datetime.strptime(trade_date_raw, "%Y-%m-%d").date()
+                else:
+                    trade_date = dt.date.today()
 
                 news_item = ShanghaiACompanyNews(
                     code=row.get("代码", "")[:12],
