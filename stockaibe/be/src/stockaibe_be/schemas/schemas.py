@@ -326,3 +326,15 @@ class ShanghaiACompanyNewsRead(BaseModel):
     created_at: dt.datetime
 
     model_config = {"from_attributes": True}
+
+
+class ShanghaiAStockBidAskItem(BaseModel):
+    """实时行情报价单项数据"""
+    item: str
+    value: Optional[float] = None
+
+
+class ShanghaiAStockBidAskResponse(BaseModel):
+    """实时行情报价响应"""
+    symbol: str
+    items: List[ShanghaiAStockBidAskItem]

@@ -428,6 +428,17 @@ def fetch_company_news(date: str) -> pd.DataFrame:
     return ak.stock_gsrl_gsdt_em(date=date)
 
 
+@LimitCallTask(
+    id="akshare_stock_bid_ask",
+    name="Stock bid ask quote",
+    quota_name=AKSHARE_DAILY_QUOTA,
+    description="Fetch real-time stock bid/ask quote via ak.stock_bid_ask_em",
+)
+def fetch_stock_bid_ask(symbol: str) -> pd.DataFrame:
+    """Wrapper around ak.stock_bid_ask_em for real-time quote data."""
+    return ak.stock_bid_ask_em(symbol=symbol)
+
+
 # ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------

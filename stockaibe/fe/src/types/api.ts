@@ -334,3 +334,13 @@ export interface ShanghaiACompanyNews {
   created_at: string;
   updated_at: string;
 }
+
+export interface ShanghaiAStockBidAskItem {
+  item: string;
+  value?: number;
+}
+
+export interface ShanghaiAStockBidAskResponse {
+  symbol: string;
+  items: ShanghaiAStockBidAskItem[];
+}

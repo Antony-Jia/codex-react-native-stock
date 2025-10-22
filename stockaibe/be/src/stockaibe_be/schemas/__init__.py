@@ -38,6 +38,8 @@ from .schemas import (
     ShanghaiAFinancialCollectRequest,
     ShanghaiAFinancialCollectResponse,
     ShanghaiACompanyNewsRead,
+    ShanghaiAStockBidAskItem,
+    ShanghaiAStockBidAskResponse
 )
 
 __all__ = [
@@ -77,4 +79,7 @@ __all__ = [
     "ShanghaiAStockPerformanceSummary",
     "ShanghaiAFinancialCollectRequest",
     "ShanghaiAFinancialCollectResponse",
+    "ShanghaiACompanyNewsRead",
+    "ShanghaiAStockBidAskItem",
+    "ShanghaiAStockBidAskResponse"
 ]

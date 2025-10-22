@@ -16,6 +16,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { 
   BarChartOutlined, 
   DatabaseOutlined, 
+  DollarOutlined,
   FileTextOutlined,
   FundOutlined, 
   LineChartOutlined,
@@ -33,6 +34,7 @@ import {
   BalanceSheetTab,
   PerformanceTab,
   CompanyNewsTab,
+  BidAskTab,
   type StockFormValues,
 } from '../components/ShanghaiA';
 import type {
@@ -41,6 +43,7 @@ import type {
   ShanghaiAMarketFundFlow,
   ShanghaiAStock,
   ShanghaiAStockBalanceSheetSummary,
+  ShanghaiAStockBidAskItem,
   ShanghaiAStockCreate,
   ShanghaiAStockFundFlow,
   ShanghaiAStockInfo,
@@ -92,6 +95,11 @@ const ShanghaiA: React.FC = () => {
   const [companyNews, setCompanyNews] = useState<ShanghaiACompanyNews[]>([]);
   const [companyNewsPage, setCompanyNewsPage] = useState(1);
   const [companyNewsTotal, setCompanyNewsTotal] = useState(0);
+
+  // Bid/Ask quote state
+  const [bidAskLoading, setBidAskLoading] = useState(false);
+  const [bidAskSymbol, setBidAskSymbol] = useState<string>('');
+  const [bidAskData, setBidAskData] = useState<ShanghaiAStockBidAskItem[]>([]);
 
   // Financial collect state
   const [balanceCollectVisible, setBalanceCollectVisible] = useState(false);
@@ -272,6 +280,23 @@ const ShanghaiA: React.FC = () => {
     }
   };
 
+  const loadBidAsk = async () => {
+    if (!bidAskSymbol || !bidAskSymbol.trim()) {
+      message.warning('请输入股票代码');
+      return;
+    }
+    setBidAskLoading(true);
+    try {
+      const response = await apiClient.getShanghaiAStockBidAsk(bidAskSymbol);
+      setBidAskData(response.items);
+    } catch (error) {
+      console.error('Failed to load bid/ask quote:', error);
+      message.error('加载实时行情失败');
+    } finally {
+      setBidAskLoading(false);
+    }
+  };
+
   // Effects
   useEffect(() => {
     if (activeTab === 'stocks') {
@@ -287,6 +312,7 @@ const ShanghaiA: React.FC = () => {
     } else if (activeTab === 'companyNews') {
       void loadCompanyNews();
     }
+    // bidAsk tab 不自动加载，需要用户手动输入代码查询
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -631,6 +657,24 @@ const ShanghaiA: React.FC = () => {
               total={companyNewsTotal}
               onLoad={loadCompanyNews}
               onSetPage={setCompanyNewsPage}
+            />
+          ),
+        },
+        {
+          key: 'bidAsk',
+          label: (
+            <span>
+              <DollarOutlined />
+              实时行情
+            </span>
+          ),
+          children: (
+            <BidAskTab
+              loading={bidAskLoading}
+              symbol={bidAskSymbol}
+              data={bidAskData}
+              onSetSymbol={setBidAskSymbol}
+              onLoad={loadBidAsk}
             />
           ),
         },

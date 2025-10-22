@@ -21,6 +21,8 @@ from ..schemas import (
     ShanghaiAMarketFundFlowRead,
     ShanghaiAStockBalanceSheetRead,
     ShanghaiAStockBalanceSheetSummary,
+    ShanghaiAStockBidAskItem,
+    ShanghaiAStockBidAskResponse,
     ShanghaiAStockCreate,
     ShanghaiAStockFundFlowRead,
     ShanghaiAStockInfoRead,
@@ -32,6 +34,7 @@ from ..schemas import (
 from ..services import ShanghaiAService
 from ..tasks.akshare_task import (
     collect_shanghai_a_financials,
+    fetch_stock_bid_ask,
     fetch_stock_individual_info,
     run_shanghai_a_daily_pipeline,
 )
@@ -441,3 +444,50 @@ def manual_update_shanghai_a(
         message="Shanghai A fund flow pipeline executed successfully",
         summary=summary,
     )
+
+
+# ---------------------------------------------------------------------------
+# Real-time quote
+# ---------------------------------------------------------------------------
+
+
+@router.get("/stocks/{symbol}/bid-ask", response_model=ShanghaiAStockBidAskResponse)
+def get_stock_bid_ask_quote(
+    symbol: str,
+    _db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    """获取指定股票的实时行情报价（买卖盘口数据）"""
+    try:
+        df = fetch_stock_bid_ask(symbol)
+        if df is None or df.empty:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No bid/ask data found for symbol {symbol}",
+            )
+        
+        items = []
+        for _, row in df.iterrows():
+            item_name = str(row.get("item", ""))
+            value = row.get("value")
+            
+            # 尝试转换为浮点数
+            float_value = None
+            if value is not None:
+                try:
+                    float_value = float(value)
+                except (ValueError, TypeError):
+                    pass
+            
+            items.append(ShanghaiAStockBidAskItem(item=item_name, value=float_value))
+        
+        return ShanghaiAStockBidAskResponse(symbol=symbol, items=items)
+    
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Failed to fetch bid/ask quote for %s: %s", symbol, exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch bid/ask quote: {str(exc)}",
+        ) from exc

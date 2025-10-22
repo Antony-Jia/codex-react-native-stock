@@ -22,6 +22,7 @@ import type {
   ShanghaiAStock,
   ShanghaiAStockBalanceSheet,
   ShanghaiAStockBalanceSheetSummary,
+  ShanghaiAStockBidAskResponse,
   ShanghaiAStockCreate,
   ShanghaiAStockFundFlow,
   ShanghaiAStockInfo,
@@ -218,6 +219,16 @@ class ApiClient {
 
   async syncShanghaiAStock(code: string): Promise<ShanghaiAStock> {
     const response = await this.client.post<ShanghaiAStock>(`/shanghai-a/stocks/${code}/sync`);
+    return response.data;
+  }
+
+  async syncShanghaiAStockInfo(code: string): Promise<ShanghaiAStock> {
+    const response = await this.client.post<ShanghaiAStock>(`/shanghai-a/stocks/${code}/sync`);
+    return response.data;
+  }
+
+  async getShanghaiAStockBidAsk(symbol: string): Promise<ShanghaiAStockBidAskResponse> {
+    const response = await this.client.get<ShanghaiAStockBidAskResponse>(`/shanghai-a/stocks/${symbol}/bid-ask`);
     return response.data;
   }
 
