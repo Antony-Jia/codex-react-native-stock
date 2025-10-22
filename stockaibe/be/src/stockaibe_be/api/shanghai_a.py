@@ -30,7 +30,7 @@ from ..schemas import (
     ShanghaiAStockUpdate,
 )
 from ..services import ShanghaiAService
-from ..tasks.aksharetest import (
+from ..tasks.akshare_task import (
     collect_shanghai_a_financials,
     fetch_stock_individual_info,
     run_shanghai_a_daily_pipeline,
@@ -388,7 +388,7 @@ def collect_company_news(
     _: User = Depends(get_current_active_superuser),
 ):
     """Manually trigger company news collection for a specific date."""
-    from ..tasks.aksharetest import fetch_company_news
+    from ..tasks.akshare_task import fetch_company_news
     
     parsed_date = None
     if target_date:
