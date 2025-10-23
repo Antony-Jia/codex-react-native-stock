@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import math
-from typing import Dict, Iterable, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set
 
 import akshare as ak
 import pandas as pd
@@ -15,6 +15,7 @@ from ..models import (
     ShanghaiAMarketFundFlow,
     ShanghaiAStock,
     ShanghaiAStockBalanceSheet,
+    ShanghaiAStockHistory,
     ShanghaiAStockFundFlow,
     ShanghaiAStockPerformance,
 )
@@ -331,6 +332,80 @@ def _upsert_stock_fund_flow(
     record.amount = _to_float(payload.get("成交额") or payload.get("今日成交额"))
 
 
+def _upsert_stock_history(
+    session: Session,
+    stock_code: str,
+    period: str,
+    adjust: str,
+    payload: Dict[str, object],
+) -> tuple[bool, bool]:
+    """Insert or update a historical OHLCV row. Returns (created, changed)."""
+    trade_date = _parse_date(payload.get("日期"))
+    if trade_date is None:
+        logger.debug(
+            "Skipping history row for %s - missing trade date in payload: %s",
+            stock_code,
+            payload,
+        )
+        return False, False
+
+    record = session.exec(
+        select(ShanghaiAStockHistory).where(
+            ShanghaiAStockHistory.stock_code == stock_code,
+            ShanghaiAStockHistory.period == period,
+            ShanghaiAStockHistory.trade_date == trade_date,
+            ShanghaiAStockHistory.adjust == adjust,
+        )
+    ).first()
+
+    if record is None:
+        record = ShanghaiAStockHistory(
+            stock_code=stock_code,
+            trade_date=trade_date,
+            period=period,
+            adjust=adjust,
+        )
+        session.add(record)
+        created = True
+    else:
+        created = False
+
+    field_values = {
+        "open": _to_float(payload.get("开盘")),
+        "close": _to_float(payload.get("收盘")),
+        "high": _to_float(payload.get("最高")),
+        "low": _to_float(payload.get("最低")),
+        "volume": _to_float(payload.get("成交�?)),
+        "amount": _to_float(payload.get("成交�?)),
+        "amplitude": _to_percent(payload.get("振幅")),
+        "pct_change": _to_percent(payload.get("涨跌�?)),
+        "change_amount": _to_float(payload.get("涨跌�?)),
+        "turnover_rate": _to_percent(payload.get("换手�?)),
+    }
+
+    volume_value = field_values.get("volume")
+    if volume_value is not None:
+        try:
+            field_values["volume"] = int(volume_value)
+        except (TypeError, ValueError):
+            field_values["volume"] = None
+
+    changed = False
+    utc_now = dt.datetime.now(dt.timezone.utc)
+    for attr, value in field_values.items():
+        current = getattr(record, attr)
+        if value is None and current is None:
+            continue
+        if value != current:
+            setattr(record, attr, value)
+            changed = True
+
+    if changed and not created:
+        record.updated_at = utc_now
+
+    return created, changed
+
+
 # ---------------------------------------------------------------------------
 # AkShare wrappers with rate limiting
 # ---------------------------------------------------------------------------
@@ -418,6 +493,29 @@ def fetch_stock_performance(raw_date: str) -> pd.DataFrame:
 
 
 @LimitCallTask(
+    id="akshare_stock_history",
+    name="Stock history (daily/weekly/monthly)",
+    quota_name=AKSHARE_DAILY_QUOTA,
+    description="Fetch Shanghai A-share historical quotes via ak.stock_zh_a_hist",
+)
+def fetch_stock_history(
+    symbol: str,
+    period: str,
+    start_date: str,
+    end_date: str,
+    adjust: str = "hfq",
+) -> pd.DataFrame:
+    """Wrapper around ak.stock_zh_a_hist."""
+    return ak.stock_zh_a_hist(
+        symbol=symbol,
+        period=period,
+        start_date=start_date,
+        end_date=end_date,
+        adjust=adjust,
+    )
+
+
+@LimitCallTask(
     id="akshare_company_news",
     name="Company news",
     quota_name=AKSHARE_DAILY_QUOTA,
@@ -437,6 +535,208 @@ def fetch_company_news(date: str) -> pd.DataFrame:
 def fetch_stock_bid_ask(symbol: str) -> pd.DataFrame:
     """Wrapper around ak.stock_bid_ask_em for real-time quote data."""
     return ak.stock_bid_ask_em(symbol=symbol)
+
+
+def _resolve_history_stock_codes(
+    session: Session,
+    stock_codes: Optional[Iterable[str]],
+) -> List[str]:
+    """Normalize and deduplicate stock codes for history collection."""
+    if stock_codes:
+        normalized: List[str] = []
+        seen: Set[str] = set()
+        for raw_code in stock_codes:
+            code = _normalize_stock_code(raw_code)
+            if not code or code in seen:
+                continue
+            normalized.append(code)
+            seen.add(code)
+        return normalized
+    return ShanghaiAService.get_active_stock_codes(session)
+
+
+def collect_stock_history(
+    session: Session,
+    stock_codes: Iterable[str],
+    start_date: dt.date,
+    end_date: dt.date,
+    period: str,
+    adjust: str = "hfq",
+) -> Dict[str, int]:
+    """Collect historical OHLC data for the provided stocks."""
+    if start_date > end_date:
+        raise ValueError("start_date must not be later than end_date")
+    normalized_period = period.lower()
+    if normalized_period not in {"daily", "weekly", "monthly"}:
+        raise ValueError(f"Unsupported period: {period}")
+
+    summary: Dict[str, int] = {
+        "stocks_processed": 0,
+        "rows_inserted": 0,
+        "rows_updated": 0,
+        "rows_skipped": 0,
+    }
+
+    start_str = start_date.strftime("%Y%m%d")
+    end_str = end_date.strftime("%Y%m%d")
+
+    for raw_code in stock_codes:
+        code = _normalize_stock_code(raw_code)
+        if not code:
+            logger.debug("Skipping invalid stock code: %s", raw_code)
+            continue
+
+        summary["stocks_processed"] += 1
+        logger.info(
+            "Collecting %s history for %s (%s -> %s, adjust=%s)",
+            normalized_period,
+            code,
+            start_str,
+            end_str,
+            adjust,
+        )
+
+        try:
+            df = fetch_stock_history(
+                symbol=code,
+                period=normalized_period,
+                start_date=start_str,
+                end_date=end_str,
+                adjust=adjust,
+            )
+        except Exception as exc:
+            session.rollback()
+            logger.exception(
+                "History fetch failed for %s (%s, %s-%s): %s",
+                code,
+                normalized_period,
+                start_str,
+                end_str,
+                exc,
+            )
+            continue
+
+        if df is None or df.empty:
+            logger.info(
+                "No history rows returned for %s (%s, %s-%s)",
+                code,
+                normalized_period,
+                start_str,
+                end_str,
+            )
+            continue
+
+        df = df.copy()
+        stock_name: Optional[str] = None
+        for candidate in ("股票名称", "名称"):
+            if candidate in df.columns:
+                raw_name = df.iloc[0].get(candidate)
+                if isinstance(raw_name, str) and raw_name.strip():
+                    stock_name = raw_name.strip()
+                    break
+
+        existing_stock = session.get(ShanghaiAStock, code)
+        if stock_name is None and existing_stock is not None:
+            stock_name = existing_stock.name
+
+        _ensure_stock(session, code, stock_name or code)
+
+        inserted = updated = skipped = 0
+        for _, row in df.iterrows():
+            created, changed = _upsert_stock_history(
+                session,
+                stock_code=code,
+                period=normalized_period,
+                adjust=adjust,
+                payload=row.to_dict(),
+            )
+            if created:
+                inserted += 1
+            elif changed:
+                updated += 1
+            else:
+                skipped += 1
+
+        try:
+            session.commit()
+        except Exception:
+            session.rollback()
+            logger.exception(
+                "Failed to persist history rows for %s (%s, %s-%s)",
+                code,
+                normalized_period,
+                start_str,
+                end_str,
+            )
+            continue
+
+        summary["rows_inserted"] += inserted
+        summary["rows_updated"] += updated
+        summary["rows_skipped"] += skipped
+
+    return summary
+
+
+def trigger_stock_history_collection(
+    session: Session,
+    start_date: dt.date,
+    end_date: dt.date,
+    period: str,
+    stock_codes: Optional[Iterable[str]] = None,
+    adjust: str = "hfq",
+) -> Dict[str, int]:
+    """Resolve stock list and collect historical OHLC data."""
+    codes = _resolve_history_stock_codes(session, stock_codes)
+    if not codes:
+        logger.info("No stock codes available for history collection (period=%s)", period)
+        return {
+            "stocks_processed": 0,
+            "rows_inserted": 0,
+            "rows_updated": 0,
+            "rows_skipped": 0,
+        }
+    return collect_stock_history(
+        session=session,
+        stock_codes=codes,
+        start_date=start_date,
+        end_date=end_date,
+        period=period,
+        adjust=adjust,
+    )
+
+
+def _default_history_range(period: str, end_date: dt.date) -> tuple[dt.date, dt.date]:
+    """Return (start, end) date range for scheduled history collection."""
+    normalized_period = period.lower()
+    if normalized_period == "daily":
+        return end_date, end_date
+    if normalized_period == "weekly":
+        return end_date - dt.timedelta(days=14), end_date
+    if normalized_period == "monthly":
+        return end_date - dt.timedelta(days=62), end_date
+    raise ValueError(f"Unsupported period: {period}")
+
+
+def _run_scheduled_history_task(session: Session, period: str, adjust: str = "hfq") -> None:
+    """Helper for scheduler entries to collect history data."""
+    today = dt.date.today()
+    end_date = today - dt.timedelta(days=1)
+    if end_date < dt.date(1990, 1, 1):
+        end_date = today
+    start_date, actual_end = _default_history_range(period, end_date)
+    codes = _resolve_history_stock_codes(session, None)
+    if not codes:
+        logger.info("Skipped %s history task: no active stock codes", period)
+        return
+    summary = collect_stock_history(
+        session=session,
+        stock_codes=codes,
+        start_date=start_date,
+        end_date=actual_end,
+        period=period,
+        adjust=adjust,
+    )
+    logger.info("History %s task summary: %s", period, summary)
 
 
 # ---------------------------------------------------------------------------
@@ -632,6 +932,39 @@ def collect_shanghai_a_financials(
 
     logger.info("Financial collection summary: %s", summary)
     return summary
+
+
+@SchedulerTask(
+    id="akshare_stock_history_daily_0100",
+    name="Stock history daily sync",
+    cron="0 1 * * *",
+    description="Daily 01:00 task: collect previous-day HFQ daily history for active stocks",
+)
+def scheduled_stock_history_daily(session: Session) -> None:
+    """Scheduler entrypoint for daily period history collection."""
+    _run_scheduled_history_task(session, period="daily")
+
+
+@SchedulerTask(
+    id="akshare_stock_history_weekly_0100",
+    name="Stock history weekly sync",
+    cron="0 1 * * 1",
+    description="Weekly Monday 01:00 task: collect HFQ weekly history for active stocks",
+)
+def scheduled_stock_history_weekly(session: Session) -> None:
+    """Scheduler entrypoint for weekly period history collection."""
+    _run_scheduled_history_task(session, period="weekly")
+
+
+@SchedulerTask(
+    id="akshare_stock_history_monthly_0100",
+    name="Stock history monthly sync",
+    cron="0 1 1 * *",
+    description="Monthly day-1 01:00 task: collect HFQ monthly history for active stocks",
+)
+def scheduled_stock_history_monthly(session: Session) -> None:
+    """Scheduler entrypoint for monthly period history collection."""
+    _run_scheduled_history_task(session, period="monthly")
 
 
 @SchedulerTask(

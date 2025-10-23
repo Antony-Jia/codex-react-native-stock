@@ -308,6 +308,47 @@ export interface ShanghaiAStockPerformanceSummary extends ShanghaiAStockPerforma
   short_name?: string;
 }
 
+export interface ShanghaiAStockHistory {
+  stock_code: string;
+  trade_date: string;
+  period: 'daily' | 'weekly' | 'monthly';
+  adjust: string;
+  open?: number;
+  close?: number;
+  high?: number;
+  low?: number;
+  volume?: number;
+  amount?: number;
+  amplitude?: number;
+  pct_change?: number;
+  change_amount?: number;
+  turnover_rate?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShanghaiAStockHistoryCalendarResponse {
+  stock_code: string;
+  period: string;
+  dates_with_data: string[];
+}
+
+export interface ShanghaiAStockHistoryCollectRequest {
+  start_date: string;
+  end_date: string;
+  period: 'daily' | 'weekly' | 'monthly';
+  stock_codes?: string[];
+  adjust?: string;
+}
+
+export interface ShanghaiAStockHistoryCollectResponse {
+  message: string;
+  stocks_processed: number;
+  rows_inserted: number;
+  rows_updated: number;
+  rows_skipped: number;
+}
+
 export interface ShanghaiAFinancialCollectRequest {
   start_period: string;
   end_period?: string;

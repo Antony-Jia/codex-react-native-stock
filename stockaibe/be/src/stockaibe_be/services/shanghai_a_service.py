@@ -15,6 +15,7 @@ from ..models import (
     ShanghaiAMarketFundFlow,
     ShanghaiAStock,
     ShanghaiAStockBalanceSheet,
+    ShanghaiAStockHistory,
     ShanghaiAStockFundFlow,
     ShanghaiAStockInfo,
     ShanghaiAStockPerformance,
@@ -108,6 +109,16 @@ class ShanghaiAService:
     def get_stock(db: Session, code: str) -> Optional[ShanghaiAStock]:
         """Get a stock by code."""
         return db.get(ShanghaiAStock, code)
+
+    @staticmethod
+    def get_active_stock_codes(db: Session) -> List[str]:
+        """Return stock codes marked as active for collection."""
+        statement = (
+            select(ShanghaiAStock.code)
+            .where(ShanghaiAStock.is_active.is_(True))
+            .order_by(ShanghaiAStock.code.asc())
+        )
+        return [row[0] for row in db.exec(statement).all()]
 
     @staticmethod
     def create_stock(db: Session, stock_data: dict) -> ShanghaiAStock:
@@ -494,6 +505,70 @@ class ShanghaiAService:
                 )
             )
         return response
+
+    # ---------------------------------------------------------------------------
+    # Historical OHLC data
+    # ---------------------------------------------------------------------------
+
+    @staticmethod
+    def list_stock_history(
+        db: Session,
+        stock_code: str,
+        period: str,
+        start_date: Optional[dt.date] = None,
+        end_date: Optional[dt.date] = None,
+        limit: Optional[int] = None,
+        adjust: Optional[str] = None,
+    ) -> List[ShanghaiAStockHistory]:
+        """List stored OHLCV rows for a stock and period."""
+        statement = (
+            select(ShanghaiAStockHistory)
+            .where(
+                ShanghaiAStockHistory.stock_code == stock_code,
+                ShanghaiAStockHistory.period == period,
+            )
+            .order_by(ShanghaiAStockHistory.trade_date.asc())
+        )
+        if adjust:
+            statement = statement.where(ShanghaiAStockHistory.adjust == adjust)
+        if start_date is not None:
+            statement = statement.where(
+                ShanghaiAStockHistory.trade_date >= start_date
+            )
+        if end_date is not None:
+            statement = statement.where(
+                ShanghaiAStockHistory.trade_date <= end_date
+            )
+        if limit is not None and limit > 0:
+            statement = statement.limit(limit)
+        return list(db.exec(statement).all())
+
+    @staticmethod
+    def list_stock_history_dates(
+        db: Session,
+        stock_code: str,
+        period: str,
+        start_date: Optional[dt.date] = None,
+        end_date: Optional[dt.date] = None,
+        adjust: Optional[str] = None,
+    ) -> List[dt.date]:
+        """Return trade dates that have stored OHLCV data for a stock."""
+        statement = select(ShanghaiAStockHistory.trade_date).where(
+            ShanghaiAStockHistory.stock_code == stock_code,
+            ShanghaiAStockHistory.period == period,
+        )
+        if adjust:
+            statement = statement.where(ShanghaiAStockHistory.adjust == adjust)
+        if start_date is not None:
+            statement = statement.where(
+                ShanghaiAStockHistory.trade_date >= start_date
+            )
+        if end_date is not None:
+            statement = statement.where(
+                ShanghaiAStockHistory.trade_date <= end_date
+            )
+        statement = statement.order_by(ShanghaiAStockHistory.trade_date.asc())
+        return [row[0] for row in db.exec(statement).all()]
 
     # ---------------------------------------------------------------------------
     # Company News

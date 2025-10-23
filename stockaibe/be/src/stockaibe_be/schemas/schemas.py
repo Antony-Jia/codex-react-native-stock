@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Dict, Generic, List, Optional, TypeVar
+from typing import Dict, Generic, List, Literal, Optional, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -338,3 +338,46 @@ class ShanghaiAStockBidAskResponse(BaseModel):
     """实时行情报价响应"""
     symbol: str
     items: List[ShanghaiAStockBidAskItem]
+
+
+class ShanghaiAStockHistoryRead(BaseModel):
+    stock_code: str
+    trade_date: dt.date
+    period: str
+    adjust: str
+    open: Optional[float] = None
+    close: Optional[float] = None
+    high: Optional[float] = None
+    low: Optional[float] = None
+    volume: Optional[int] = None
+    amount: Optional[float] = None
+    amplitude: Optional[float] = None
+    pct_change: Optional[float] = None
+    change_amount: Optional[float] = None
+    turnover_rate: Optional[float] = None
+    created_at: dt.datetime
+    updated_at: dt.datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ShanghaiAStockHistoryCalendarResponse(BaseModel):
+    stock_code: str
+    period: str
+    dates_with_data: List[dt.date]
+
+
+class ShanghaiAStockHistoryCollectRequest(BaseModel):
+    start_date: dt.date
+    end_date: dt.date
+    period: Literal["daily", "weekly", "monthly"] = "daily"
+    stock_codes: Optional[List[str]] = None
+    adjust: str = "hfq"
+
+
+class ShanghaiAStockHistoryCollectResponse(BaseModel):
+    message: str
+    stocks_processed: int
+    rows_inserted: int
+    rows_updated: int
+    rows_skipped: int

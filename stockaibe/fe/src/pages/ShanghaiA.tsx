@@ -31,6 +31,7 @@ import {
   StocksTab,
   MarketFundFlowTab,
   StockFundFlowTab,
+  StockHistoryTab,
   BalanceSheetTab,
   PerformanceTab,
   CompanyNewsTab,
@@ -578,6 +579,16 @@ const ShanghaiA: React.FC = () => {
               onManualUpdate={handleManualUpdate}
             />
           ),
+        },
+        {
+          key: 'history',
+          label: (
+            <span>
+              <LineChartOutlined />
+              历史行情
+            </span>
+          ),
+          children: <StockHistoryTab />,
         },
         {
           key: 'balanceSheet',

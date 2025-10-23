@@ -23,6 +23,10 @@ from ..schemas import (
     ShanghaiAStockBalanceSheetSummary,
     ShanghaiAStockBidAskItem,
     ShanghaiAStockBidAskResponse,
+    ShanghaiAStockHistoryCalendarResponse,
+    ShanghaiAStockHistoryCollectRequest,
+    ShanghaiAStockHistoryCollectResponse,
+    ShanghaiAStockHistoryRead,
     ShanghaiAStockCreate,
     ShanghaiAStockFundFlowRead,
     ShanghaiAStockInfoRead,
@@ -36,6 +40,7 @@ from ..tasks.akshare_task import (
     collect_shanghai_a_financials,
     fetch_stock_bid_ask,
     fetch_stock_individual_info,
+    trigger_stock_history_collection,
     run_shanghai_a_daily_pipeline,
 )
 
@@ -305,6 +310,140 @@ def list_shanghai_a_stock_performances(
     if not stock:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stock not found")
     return ShanghaiAService.list_stock_performances(db, code, limit)
+
+
+# ---------------------------------------------------------------------------
+# Historical OHLC data
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/stocks/{code}/histories",
+    response_model=List[ShanghaiAStockHistoryRead],
+)
+def list_shanghai_a_stock_histories(
+    code: str,
+    period: str = Query("daily", regex="^(daily|weekly|monthly)$"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD or YYYYMMDD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD or YYYYMMDD)"),
+    limit: Optional[int] = Query(200, ge=1, le=1000),
+    adjust: str = Query("hfq", description="Adjust type, default hfq"),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Return stored historical OHLC rows for a stock."""
+    stock = ShanghaiAService.get_stock(db, code)
+    if not stock:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stock not found")
+
+    normalized_period = period.lower()
+    start = _parse_date_param("start_date", start_date)
+    end = _parse_date_param("end_date", end_date)
+    if start and end and start > end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="end_date must be greater than or equal to start_date",
+        )
+
+    items = ShanghaiAService.list_stock_history(
+        db,
+        stock_code=code,
+        period=normalized_period,
+        start_date=start,
+        end_date=end,
+        limit=limit,
+        adjust=adjust or None,
+    )
+    return items
+
+
+@router.get(
+    "/stocks/{code}/histories/calendar",
+    response_model=ShanghaiAStockHistoryCalendarResponse,
+)
+def get_shanghai_a_stock_history_calendar(
+    code: str,
+    period: str = Query("daily", regex="^(daily|weekly|monthly)$"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD or YYYYMMDD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD or YYYYMMDD)"),
+    adjust: str = Query("hfq", description="Adjust type, default hfq"),
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Return calendar metadata (dates with data) for the requested stock."""
+    stock = ShanghaiAService.get_stock(db, code)
+    if not stock:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stock not found")
+
+    normalized_period = period.lower()
+    parsed_end = _parse_date_param("end_date", end_date) or dt.date.today()
+    parsed_start = _parse_date_param("start_date", start_date) or (
+        parsed_end - dt.timedelta(days=30)
+    )
+    if parsed_start > parsed_end:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="end_date must be greater than or equal to start_date",
+        )
+
+    dates = ShanghaiAService.list_stock_history_dates(
+        db,
+        stock_code=code,
+        period=normalized_period,
+        start_date=parsed_start,
+        end_date=parsed_end,
+        adjust=adjust or None,
+    )
+    return ShanghaiAStockHistoryCalendarResponse(
+        stock_code=code,
+        period=normalized_period,
+        dates_with_data=dates,
+    )
+
+
+@router.post(
+    "/histories/collect",
+    response_model=ShanghaiAStockHistoryCollectResponse,
+)
+def collect_shanghai_a_stock_histories(
+    request: ShanghaiAStockHistoryCollectRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_active_superuser),
+):
+    """Manually trigger historical OHLC collection for configured stocks."""
+    yesterday = dt.date.today() - dt.timedelta(days=1)
+    if request.end_date > yesterday:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="end_date must not exceed yesterday",
+        )
+    if request.start_date > request.end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="start_date must be less than or equal to end_date",
+        )
+
+    try:
+        summary = trigger_stock_history_collection(
+            session=db,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            period=request.period,
+            stock_codes=request.stock_codes,
+            adjust=request.adjust,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+    return ShanghaiAStockHistoryCollectResponse(
+        message="Historical OHLC data collected successfully",
+        stocks_processed=summary.get("stocks_processed", 0),
+        rows_inserted=summary.get("rows_inserted", 0),
+        rows_updated=summary.get("rows_updated", 0),
+        rows_skipped=summary.get("rows_skipped", 0),
+    )
 
 
 @router.post(

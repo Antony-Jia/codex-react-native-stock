@@ -25,6 +25,10 @@ import type {
   ShanghaiAStockBidAskResponse,
   ShanghaiAStockCreate,
   ShanghaiAStockFundFlow,
+  ShanghaiAStockHistory,
+  ShanghaiAStockHistoryCalendarResponse,
+  ShanghaiAStockHistoryCollectRequest,
+  ShanghaiAStockHistoryCollectResponse,
   ShanghaiAStockInfo,
   ShanghaiAStockPerformance,
   ShanghaiAStockPerformanceSummary,
@@ -297,6 +301,48 @@ class ApiClient {
     const response = await this.client.get<PaginatedResponse<ShanghaiAStockPerformanceSummary>>('/shanghai-a/financials/performances', {
       params,
     });
+    return response.data;
+  }
+
+  async getShanghaiAStockHistories(
+    code: string,
+    params?: {
+      period?: 'daily' | 'weekly' | 'monthly';
+      start_date?: string;
+      end_date?: string;
+      limit?: number;
+      adjust?: string;
+    }
+  ): Promise<ShanghaiAStockHistory[]> {
+    const response = await this.client.get<ShanghaiAStockHistory[]>(`/shanghai-a/stocks/${code}/histories`, {
+      params,
+    });
+    return response.data;
+  }
+
+  async getShanghaiAStockHistoryCalendar(
+    code: string,
+    params?: {
+      period?: 'daily' | 'weekly' | 'monthly';
+      start_date?: string;
+      end_date?: string;
+      adjust?: string;
+    }
+  ): Promise<ShanghaiAStockHistoryCalendarResponse> {
+    const response = await this.client.get<ShanghaiAStockHistoryCalendarResponse>(
+      `/shanghai-a/stocks/${code}/histories/calendar`,
+      { params }
+    );
+    return response.data;
+  }
+
+  async collectShanghaiAStockHistories(
+    data: ShanghaiAStockHistoryCollectRequest
+  ): Promise<ShanghaiAStockHistoryCollectResponse> {
+    const response = await this.client.post<ShanghaiAStockHistoryCollectResponse>(
+      '/shanghai-a/histories/collect',
+      data
+    );
     return response.data;
   }
 

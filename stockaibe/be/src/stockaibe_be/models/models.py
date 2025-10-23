@@ -172,6 +172,56 @@ class ShanghaiAStockFundFlow(TimestampMixin, table=True):
     net_inflow: Optional[float] = Field(default=None, description="净流入资金（元）")
     amount: Optional[float] = Field(default=None, description="成交额（元）")
 
+
+class ShanghaiAStockHistory(TimestampMixin, table=True):
+    """沪深 A 股历史行情数据（按周期存储）。"""
+
+    __tablename__ = "shanghai_a_stock_history"
+    __table_args__ = (
+        UniqueConstraint(
+            "stock_code",
+            "period",
+            "trade_date",
+            "adjust",
+            name="uq_shanghai_a_stock_history",
+        ),
+        {"extend_existing": True},
+    )
+
+    id: Optional[int] = Field(
+        default=None,
+        primary_key=True,
+        sa_column_kwargs={"autoincrement": True},
+    )
+    stock_code: str = Field(
+        foreign_key="shanghai_a_stocks.code",
+        max_length=12,
+        index=True,
+        description="股票代码",
+    )
+    trade_date: dt.date = Field(index=True, description="交易日")
+    period: str = Field(
+        max_length=10,
+        index=True,
+        description="数据周期（daily/weekly/monthly）",
+    )
+    adjust: str = Field(
+        default="hfq",
+        max_length=10,
+        description="复权类型（默认 hfq）",
+    )
+    open: Optional[float] = Field(default=None, description="开盘价")
+    close: Optional[float] = Field(default=None, description="收盘价")
+    high: Optional[float] = Field(default=None, description="最高价")
+    low: Optional[float] = Field(default=None, description="最低价")
+    volume: Optional[int] = Field(default=None, description="成交量（手）")
+    amount: Optional[float] = Field(default=None, description="成交额（元）")
+    amplitude: Optional[float] = Field(default=None, description="振幅（%）")
+    pct_change: Optional[float] = Field(default=None, description="涨跌幅（%）")
+    change_amount: Optional[float] = Field(default=None, description="涨跌额（元）")
+    turnover_rate: Optional[float] = Field(default=None, description="换手率（%）")
+
+
 class ShanghaiAStockBalanceSheet(TimestampMixin, table=True):
     """Quarterly balance sheet snapshot for Shanghai A stocks."""
 
