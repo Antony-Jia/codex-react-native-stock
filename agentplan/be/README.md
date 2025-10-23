@@ -3,8 +3,8 @@
 ## Quick start
 
 1. Activate the existing environment: `conda activate stockai`
-2. Install dependencies if needed: `pip install fastapi uvicorn langgraph redis`
-3. Launch the service: `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
+2. Install dependencies via Poetry (shared with `stockaibe/be`): `poetry install`
+3. Launch the service: `poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
 
 ## Key modules
 
