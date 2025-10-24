@@ -568,7 +568,13 @@ class ShanghaiAService:
                 ShanghaiAStockHistory.trade_date <= end_date
             )
         statement = statement.order_by(ShanghaiAStockHistory.trade_date.asc())
-        return [row[0] for row in db.exec(statement).all()]
+        results = db.exec(statement).all()
+        dates: List[dt.date] = []
+        for item in results:
+            value = item[0] if isinstance(item, tuple) else item
+            if isinstance(value, dt.date):
+                dates.append(value)
+        return dates
 
     # ---------------------------------------------------------------------------
     # Company News

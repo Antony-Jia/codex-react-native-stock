@@ -375,12 +375,12 @@ def _upsert_stock_history(
         "close": _to_float(payload.get("收盘")),
         "high": _to_float(payload.get("最高")),
         "low": _to_float(payload.get("最低")),
-        "volume": _to_float(payload.get("成交�?)),
-        "amount": _to_float(payload.get("成交�?)),
+        "volume": _to_float(payload.get("成交量")),
+        "amount": _to_float(payload.get("成交额")),
         "amplitude": _to_percent(payload.get("振幅")),
-        "pct_change": _to_percent(payload.get("涨跌�?)),
-        "change_amount": _to_float(payload.get("涨跌�?)),
-        "turnover_rate": _to_percent(payload.get("换手�?)),
+        "pct_change": _to_percent(payload.get("涨跌幅")),
+        "change_amount": _to_float(payload.get("涨跌额")),
+        "turnover_rate": _to_percent(payload.get("换手率")),
     }
 
     volume_value = field_values.get("volume")
@@ -987,3 +987,4 @@ def scheduled_shanghai_a_daily(session: Session) -> None:
 def scheduled_company_news_hourly(session: Session) -> None:
     """Scheduler entrypoint for the company news pipeline."""
     ShanghaiAService.refresh_company_news(session, fetch_company_news)
+    
