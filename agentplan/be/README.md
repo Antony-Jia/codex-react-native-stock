@@ -21,3 +21,5 @@
 - Embed `app.runtime.service.OrchestratorService` into the host process.
 - Provide an existing Redis client via `KVStore` if persistent storage is required.
 - Copy the modules directly into other projects; no packaging step is necessary.
+- Configure CORS origins via `AGENTPLAN_ALLOWED_ORIGINS` (comma-separated) if the frontend runs on different hosts.
+- A starter plan (`demo/default-plan`) loads automatically so the UI can connect without setup.

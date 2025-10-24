@@ -6,7 +6,7 @@ from uuid import uuid4
 from ..agents import echo  # noqa: F401 - ensure default agents registered
 from ..agents.registry import registry as agent_registry
 from ..contracts.api import HITLReply, PlanUpsertRequest, RunRequest, RunResponse, RunStatus, VFSObject
-from ..contracts.plan import Plan
+from ..contracts.plan import Plan, Step
 from ..graph.exporter import plan_to_snapshot
 from ..graph.plan_compile import PlanCompiler
 from ..graph.state import GraphState
@@ -23,6 +23,7 @@ class OrchestratorService:
         self._kv = kv_store or InMemoryKVStore()
         self._compiler = PlanCompiler(agent_registry)
         self._runs: Dict[str, Dict[str, Any]] = {}
+        self._ensure_default_plan()
 
     def create_run(self, request: RunRequest) -> RunResponse:
         plan_id = request.options.get("plan_id")
@@ -97,6 +98,24 @@ class OrchestratorService:
         replies = run.setdefault("hitl", {})
         replies[payload.node_id] = payload.content
         return {"run_id": payload.run_id, "node_id": payload.node_id}
+
+    def _ensure_default_plan(self) -> None:
+        """
+        Seed a starter plan so the frontend can load without manual setup.
+        """
+
+        sentinel_tenant = "demo"
+        sentinel_plan = "default-plan"
+        if self._kv.plan_get(sentinel_tenant, sentinel_plan):
+            return
+
+        default_plan = Plan(
+            description="Seed plan for development walkthrough",
+            steps=[
+                Step(id="1", action="echo", args={"message": "Hello from agentplan!"}),
+            ],
+        )
+        self._kv.plan_set(sentinel_tenant, sentinel_plan, default_plan.dict())
 
 
 service = OrchestratorService()
