@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -42,3 +42,25 @@ class HITLReply(BaseModel):
     node_id: str
     content: Dict[str, Any]
 
+
+class PlannerAgentConfig(BaseModel):
+    name: str
+    description: str
+    inputs: List[str] = Field(default_factory=list)
+    outputs: List[str] = Field(default_factory=list)
+
+
+class PlanGenerationRequest(BaseModel):
+    tenant: str
+    plan_id: str
+    goal: str
+    agents: Optional[List[PlannerAgentConfig]] = None
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PlanGenerationResponse(BaseModel):
+    plan: Plan
+    graph_json: Dict[str, Any]
+    tenant: str
+    plan_id: str
+    metadata: Dict[str, Any] = Field(default_factory=dict)

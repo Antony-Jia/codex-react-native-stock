@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException
 
 from ..contracts.api import (
     HITLReply,
+    PlanGenerationRequest,
+    PlanGenerationResponse,
     PlanUpsertRequest,
     RunRequest,
     RunResponse,
@@ -18,6 +20,14 @@ api_router = APIRouter(prefix="/api")
 def create_run(payload: RunRequest) -> RunResponse:
     try:
         return service.create_run(payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@api_router.post("/planner/generate", response_model=PlanGenerationResponse)
+def generate_plan(payload: PlanGenerationRequest) -> PlanGenerationResponse:
+    try:
+        return service.generate_plan(payload)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -62,4 +72,3 @@ def hitl_reply(payload: HITLReply) -> dict:
         return service.hitl_reply(payload)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-

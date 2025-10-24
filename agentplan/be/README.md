@@ -23,3 +23,10 @@
 - Copy the modules directly into other projects; no packaging step is necessary.
 - Configure CORS origins via `AGENTPLAN_ALLOWED_ORIGINS` (comma-separated) if the frontend runs on different hosts.
 - A starter plan (`demo/default-plan`) loads automatically so the UI can connect without setup.
+
+## AI-assisted planning
+
+- Populate `.env` with `AGENTPLAN_OPENAI_API_KEY`, `AGENTPLAN_OPENAI_API_MODEL`, and optionally `AGENTPLAN_OPENAI_API_URL`.
+- Call `POST /api/planner/generate` with `{ "tenant": "...", "plan_id": "...", "goal": "..." }` to have the planner produce a LangGraph-compatible plan.
+- The planner knows about the built-in `draft_writer`, `content_polisher`, and `echo` agents; you can override the catalog by supplying an `agents` array in the request.
+- Generated plans are persisted automatically and can be executed via `POST /api/runs`.

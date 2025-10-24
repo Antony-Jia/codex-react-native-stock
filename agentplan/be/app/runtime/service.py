@@ -1,17 +1,30 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 from uuid import uuid4
 
-from ..agents import echo  # noqa: F401 - ensure default agents registered
+from ..agents import echo, polisher, writer  # noqa: F401 - ensure agents register on import
 from ..agents.registry import registry as agent_registry
-from ..contracts.api import HITLReply, PlanUpsertRequest, RunRequest, RunResponse, RunStatus, VFSObject
+from ..contracts.api import (
+    HITLReply,
+    PlanGenerationRequest,
+    PlanGenerationResponse,
+    PlanUpsertRequest,
+    RunRequest,
+    RunResponse,
+    RunStatus,
+    VFSObject,
+)
 from ..contracts.plan import Plan, Step
 from ..graph.exporter import plan_to_snapshot
 from ..graph.plan_compile import PlanCompiler
 from ..graph.state import GraphState
 from ..memory.in_memory import InMemoryKVStore
 from ..runtime.context import ExecutionContext
+from ..runtime.config import get_settings
+from ..runtime.llm import LLMClient, LLMConfigurationError
+from ..planner.catalog import PlannerTool
+from ..planner.llm import LLMPlanner
 
 
 class OrchestratorService:
@@ -23,6 +36,12 @@ class OrchestratorService:
         self._kv = kv_store or InMemoryKVStore()
         self._compiler = PlanCompiler(agent_registry)
         self._runs: Dict[str, Dict[str, Any]] = {}
+        self._settings = get_settings()
+        try:
+            self._llm_client = LLMClient(self._settings)
+        except LLMConfigurationError:
+            self._llm_client = None
+        self._planner = LLMPlanner(self._llm_client, self._kv)
         self._ensure_default_plan()
 
     def create_run(self, request: RunRequest) -> RunResponse:
@@ -36,7 +55,13 @@ class OrchestratorService:
 
         plan = Plan(**plan_payload)
         run_id = request.options.get("run_id") or uuid4().hex
-        ctx = ExecutionContext(run_id=run_id, tenant=request.tenant, kv_store=self._kv, metadata=request.options)
+        ctx = ExecutionContext(
+            run_id=run_id,
+            tenant=request.tenant,
+            kv_store=self._kv,
+            metadata=request.options,
+            llm_client=self._llm_client,
+        )
 
         graph = self._compiler.compile(plan, ctx)
         state: GraphState = {"agent_results": {}}
@@ -98,6 +123,39 @@ class OrchestratorService:
         replies = run.setdefault("hitl", {})
         replies[payload.node_id] = payload.content
         return {"run_id": payload.run_id, "node_id": payload.node_id}
+
+    def generate_plan(self, payload: PlanGenerationRequest) -> PlanGenerationResponse:
+        if not self._planner.available():
+            raise ValueError("Planner is not configured. Provide OpenAI credentials in the .env file.")
+
+        tools: List[PlannerTool] | None = None
+        if payload.agents:
+            tools = [
+                PlannerTool(
+                    name=agent.name,
+                    description=agent.description,
+                    inputs=agent.inputs,
+                    outputs=agent.outputs,
+                )
+                for agent in payload.agents
+            ]
+
+        result = self._planner.generate_plan(
+            tenant=payload.tenant,
+            plan_id=payload.plan_id,
+            goal=payload.goal,
+            tools=tools,
+            metadata=payload.metadata,
+        )
+        metadata = (result.get("metadata") if isinstance(result, dict) else None) or payload.metadata or {}
+
+        return PlanGenerationResponse(
+            plan=result["plan"],
+            graph_json=result["graph_json"],
+            tenant=result["tenant"],
+            plan_id=result["plan_id"],
+            metadata=metadata,
+        )
 
     def _ensure_default_plan(self) -> None:
         """
