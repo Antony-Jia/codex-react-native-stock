@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -22,6 +22,7 @@ class NodeSpec(BaseModel):
 
     node_id: str
     agent_name: str
+    objective: Optional[str] = None
     static_inputs: Dict[str, Any] = Field(default_factory=dict)
 
 
@@ -32,4 +33,3 @@ class GraphSnapshot(BaseModel):
 
     nodes: List[NodeSpec]
     edges: List[EdgeMap]
-

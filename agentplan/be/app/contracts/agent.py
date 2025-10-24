@@ -32,6 +32,7 @@ class AgentInvocation(BaseModel):
 
     step_id: str
     agent: str
+    objective: Optional[str] = None
     input_payload: Dict[str, Any]
     output_payload: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
@@ -39,4 +40,3 @@ class AgentInvocation(BaseModel):
 
 class AgentExecutionError(RuntimeError):
     """Raised when an agent fails during execution."""
-

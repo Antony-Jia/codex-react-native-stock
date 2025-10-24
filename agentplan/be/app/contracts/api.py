@@ -58,9 +58,16 @@ class PlanGenerationRequest(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
+class MemoryRecord(BaseModel):
+    path: str
+    payload: Dict[str, Any]
+    note: Optional[str] = None
+
+
 class PlanGenerationResponse(BaseModel):
     plan: Plan
     graph_json: Dict[str, Any]
     tenant: str
     plan_id: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    memory_records: List[MemoryRecord] = Field(default_factory=list)

@@ -26,7 +26,10 @@
 
 ## AI-assisted planning
 
-- Populate `.env` with `AGENTPLAN_OPENAI_API_KEY`, `AGENTPLAN_OPENAI_API_MODEL`, and optionally `AGENTPLAN_OPENAI_API_URL`.
+- Populate `.env` with `AGENTPLAN_OPENAI_API_KEY`, `AGENTPLAN_OPENAI_API_MODEL`, and optionally `AGENTPLAN_OPENAI_API_URL` (plain `OPENAI_*` keys are also accepted for convenience).
+- Optional: set `AGENTPLAN_OPENAI_TIMEOUT`/`OPENAI_TIMEOUT` (seconds) to prevent long-running planner calls from hanging.
 - Call `POST /api/planner/generate` with `{ "tenant": "...", "plan_id": "...", "goal": "..." }` to have the planner produce a LangGraph-compatible plan.
 - The planner knows about the built-in `draft_writer`, `content_polisher`, and `echo` agents; you can override the catalog by supplying an `agents` array in the request.
 - Generated plans are persisted automatically and can be executed via `POST /api/runs`.
+- Each generated step carries an `objective` field, and key artefacts are written to the VFS (`plans/{tenant}/{plan_id}/...`) so the frontend can surface planning memories alongside the plan.
+

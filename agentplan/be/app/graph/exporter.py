@@ -19,6 +19,7 @@ def plan_to_snapshot(plan: Plan) -> GraphSnapshot:
             NodeSpec(
                 node_id=step.id,
                 agent_name=step.action,
+                objective=step.objective,
                 static_inputs={k: v for k, v in step.args.items() if not str(v).startswith("$")},
             )
         )
@@ -26,4 +27,3 @@ def plan_to_snapshot(plan: Plan) -> GraphSnapshot:
             edges.append(EdgeMap(src_node=dep, dst_node=step.id, field_map={}))
 
     return GraphSnapshot(nodes=nodes, edges=edges)
-

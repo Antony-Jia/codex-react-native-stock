@@ -155,6 +155,7 @@ class OrchestratorService:
             tenant=result["tenant"],
             plan_id=result["plan_id"],
             metadata=metadata,
+            memory_records=result.get("memory_records", []),
         )
 
     def _ensure_default_plan(self) -> None:
@@ -170,7 +171,12 @@ class OrchestratorService:
         default_plan = Plan(
             description="Seed plan for development walkthrough",
             steps=[
-                Step(id="1", action="echo", args={"message": "Hello from agentplan!"}),
+                Step(
+                    id="1",
+                    action="echo",
+                    objective="Return a greeting confirming the orchestrator is ready.",
+                    args={"message": "Hello from agentplan!"},
+                ),
             ],
         )
         self._kv.plan_set(sentinel_tenant, sentinel_plan, default_plan.dict())

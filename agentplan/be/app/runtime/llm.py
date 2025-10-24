@@ -25,9 +25,12 @@ class LLMClient:
         client_kwargs = {
             "api_key": settings.openai_api_key,
             "model": settings.openai_api_model,
+            "max_retries": 1,
         }
         if settings.openai_api_url:
             client_kwargs["base_url"] = settings.openai_api_url
+        if settings.openai_timeout:
+            client_kwargs["timeout"] = settings.openai_timeout
 
         self._chat = ChatOpenAI(**client_kwargs)
 
@@ -72,3 +75,6 @@ class LLMClient:
             return json.loads(content)
         except json.JSONDecodeError as exc:
             raise RuntimeError("Planner response is not valid JSON.") from exc
+
+    def chat_model(self) -> ChatOpenAI:
+        return self._chat

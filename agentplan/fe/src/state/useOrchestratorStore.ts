@@ -4,19 +4,30 @@ import {
   fetchPlan,
   fetchRun,
   fetchVfs,
+  generatePlan as generatePlanApi,
   putVfs,
   upsertPlan,
 } from "../api/orchestrator";
-import { Plan, RunResponse, RunStatus } from "../types";
+import {
+  GraphSnapshot,
+  MemoryRecord,
+  Plan,
+  PlannerAgentConfig,
+  RunResponse,
+  RunStatus,
+} from "../types";
 
 type OrchestratorState = {
   tenant: string;
   planId: string;
   plan: Plan | null;
   runStatus: RunStatus | null;
+  planGraph: GraphSnapshot | null;
+  memoryRecords: MemoryRecord[];
   vfsPath: string;
   vfsData: Record<string, unknown> | null;
   loading: boolean;
+  planning: boolean;
   error: string | null;
   setTenant: (tenant: string) => void;
   setPlanId: (planId: string) => void;
@@ -26,6 +37,7 @@ type OrchestratorState = {
   refreshRun: (runId: string) => Promise<RunStatus | null>;
   loadVfs: (path: string) => Promise<void>;
   saveVfs: (path: string, payload: Record<string, unknown>) => Promise<void>;
+  generatePlan: (goal: string, agents?: PlannerAgentConfig[]) => Promise<boolean>;
   clearError: () => void;
 };
 
@@ -34,9 +46,12 @@ export const useOrchestratorStore = create<OrchestratorState>((set, get) => ({
   planId: "default-plan",
   plan: null,
   runStatus: null,
+  planGraph: null,
+  memoryRecords: [],
   vfsPath: "",
   vfsData: null,
   loading: false,
+  planning: false,
   error: null,
   setTenant: (tenant) => set({ tenant }),
   setPlanId: (planId) => set({ planId }),
@@ -115,5 +130,24 @@ export const useOrchestratorStore = create<OrchestratorState>((set, get) => ({
       set({ loading: false });
     }
   },
+  generatePlan: async (goal, agents) => {
+    const { tenant, planId } = get();
+    set({ planning: true, error: null });
+    try {
+      const response = await generatePlanApi(tenant, planId, goal, agents);
+      set({
+        plan: response.plan,
+        planGraph: response.graph_json,
+        memoryRecords: response.memory_records,
+      });
+      return true;
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : "Failed to generate plan" });
+      return false;
+    } finally {
+      set({ planning: false });
+    }
+  },
 }));
+
 

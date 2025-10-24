@@ -12,6 +12,7 @@ class Step(BaseModel):
 
     id: str
     action: str
+    objective: Optional[str] = None
     depends_on: List[str] = Field(default_factory=list)
     args: Dict[str, Any] = Field(default_factory=dict)
 
@@ -32,4 +33,3 @@ class Plan(BaseModel):
         if len(ids) != len(steps):
             raise ValueError("Step ids must be unique")
         return steps
-

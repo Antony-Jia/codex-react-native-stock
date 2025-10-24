@@ -1,5 +1,13 @@
 import { apiClient } from "./client";
-import { Plan, RunRequest, RunResponse, RunStatus, VfsObject } from "../types";
+import {
+  Plan,
+  PlanGenerationResponse,
+  PlannerAgentConfig,
+  RunRequest,
+  RunResponse,
+  RunStatus,
+  VfsObject,
+} from "../types";
 
 export const upsertPlan = async (tenant: string, planId: string, plan: Plan) => {
   await apiClient.post("/plans", { tenant, plan_id: planId, plan });
@@ -20,6 +28,23 @@ export const fetchRun = async (runId: string) => {
   return data;
 };
 
+export const generatePlan = async (
+  tenant: string,
+  planId: string,
+  goal: string,
+  agents?: PlannerAgentConfig[],
+  metadata?: Record<string, unknown>,
+) => {
+  const { data } = await apiClient.post<PlanGenerationResponse>("/planner/generate", {
+    tenant,
+    plan_id: planId,
+    goal,
+    agents,
+    metadata,
+  });
+  return data;
+};
+
 export const putVfs = async (payload: VfsObject) => {
   await apiClient.put("/vfs", payload);
 };
@@ -28,4 +53,5 @@ export const fetchVfs = async (tenant: string, path: string) => {
   const { data } = await apiClient.get<Record<string, unknown>>(`/vfs/${tenant}/${encodeURIComponent(path)}`);
   return data;
 };
+
 

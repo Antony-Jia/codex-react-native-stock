@@ -62,6 +62,7 @@ class PlanCompiler:
                 invocation = AgentInvocation(
                     step_id=step.id,
                     agent=spec.name,
+                    objective=step.objective,
                     input_payload=agent_input.dict(),
                     output_payload=result.dict(),
                 )
@@ -91,4 +92,3 @@ class PlanCompiler:
             state_graph.add_edge(node_id, END)
 
         return state_graph.compile()
-

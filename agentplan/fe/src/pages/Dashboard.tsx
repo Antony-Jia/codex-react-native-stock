@@ -4,6 +4,8 @@ import PlanEditor from "../components/PlanEditor";
 import RunConsole from "../components/RunConsole";
 import GraphViewer from "../components/GraphViewer";
 import VfsPanel from "../components/VfsPanel";
+import PlannerConsole from "../components/PlannerConsole";
+import MemoryViewer from "../components/MemoryViewer";
 import { useOrchestratorStore } from "../state/useOrchestratorStore";
 
 const Dashboard = () => {
@@ -19,6 +21,11 @@ const Dashboard = () => {
     <Space direction="vertical" style={{ width: "100%" }} size="large">
       {error && <Alert message={error} type="error" closable onClose={clearError} />}
       <Row gutter={[16, 16]}>
+        <Col span={24}>
+          <PlannerConsole />
+        </Col>
+      </Row>
+      <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
           <PlanEditor />
         </Col>
@@ -31,6 +38,11 @@ const Dashboard = () => {
           <GraphViewer />
         </Col>
         <Col xs={24} md={12}>
+          <MemoryViewer />
+        </Col>
+      </Row>
+      <Row gutter={[16, 16]}>
+        <Col span={24}>
           <VfsPanel />
         </Col>
       </Row>
@@ -39,3 +51,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
